@@ -1,0 +1,1 @@
+MSYS_NO_PATHCONV=1 docker run -it --gpus all --name MMCoQA -w /root -v "$(pwd):/root/MMCoQA" mmcoqa:latest
