@@ -21,8 +21,9 @@ import faiss
 import pickle
 import numpy as np
 import torch
-from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
-                              TensorDataset)
+from torch.utils.data import (
+    DataLoader, RandomSampler, SequentialSampler, TensorDataset
+)
 from torch.utils.data.distributed import DistributedSampler
 
 try:
@@ -85,40 +86,53 @@ def train(args, train_dataset, model, tokenizer):
         tb_writer = SummaryWriter(os.path.join(args.output_dir, 'logs'))
 
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
-    train_sampler = RandomSampler(
-        train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
+    train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
     train_dataloader = DataLoader(
-        train_dataset, sampler=train_sampler, batch_size=args.train_batch_size, num_workers=args.num_workers)
+        train_dataset,
+        sampler=train_sampler,
+        batch_size=args.train_batch_size,
+        num_workers=args.num_workers
+    )
 
     if args.max_steps > 0:
         t_total = args.max_steps
-        args.num_train_epochs = args.max_steps // (
-            len(train_dataloader) // args.gradient_accumulation_steps) + 1
+        args.num_train_epochs = args.max_steps // (len(train_dataloader) // args.gradient_accumulation_steps) + 1
     else:
-        t_total = len(
-            train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
+        t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
 
     # Prepare optimizer and schedule (linear warmup and decay)
     no_decay = ['bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [
-        {'params': [p for n, p in model.named_parameters() if not any(
-            nd in n for nd in no_decay)], 'weight_decay': args.weight_decay},
-        {'params': [p for n, p in model.named_parameters() if any(
-            nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        {
+            'params': [
+                p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)
+            ],
+            'weight_decay': args.weight_decay
+        },
+        {
+            'params': [
+                p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)
+            ],
+            'weight_decay': 0.0
+        }
     ]
-    optimizer = AdamW(optimizer_grouped_parameters,
-                      lr=args.learning_rate, eps=args.adam_epsilon)
+    optimizer = AdamW(
+        optimizer_grouped_parameters,
+        lr=args.learning_rate,
+        eps=args.adam_epsilon
+    )
     args.warmup_steps = int(t_total * args.warmup_portion)
     scheduler = get_linear_schedule_with_warmup(
-        optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total)
+        optimizer,
+        num_warmup_steps=args.warmup_steps,
+        num_training_steps=t_total
+    )
     if args.fp16:
         try:
             from apex import amp
         except ImportError:
-            raise ImportError(
-                "Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
-        model, optimizer = amp.initialize(
-            model, optimizer, opt_level=args.fp16_opt_level)
+            raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
+        model, optimizer = amp.initialize(model, optimizer, opt_level=args.fp16_opt_level)
 
     # multi-gpu training (should be after apex fp16 initialization)
     if args.n_gpu > 1:
@@ -127,9 +141,12 @@ def train(args, train_dataset, model, tokenizer):
 
     # Distributed training (should be after apex fp16 initialization)
     if args.local_rank != -1:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank],
-                                                          output_device=args.local_rank,
-                                                          find_unused_parameters=True)
+        model = torch.nn.parallel.DistributedDataParallel(
+            model,
+            device_ids=[args.local_rank],
+            output_device=args.local_rank,
+            find_unused_parameters=True
+        )
 
     # Train!
     logger.info("***** Running training *****")
@@ -146,13 +163,19 @@ def train(args, train_dataset, model, tokenizer):
     global_step = 1
     tr_loss, logging_loss = 0.0, 0.0
     model.zero_grad()
-    train_iterator = trange(int(args.num_train_epochs),
-                            desc="Epoch", disable=args.local_rank not in [-1, 0])
+    train_iterator = trange(
+        int(args.num_train_epochs),
+        desc="Epoch",
+        disable=args.local_rank not in [-1, 0]
+    )
     # Added here for reproductibility (even between python 2 and 3)
     set_seed(args)
     for _ in train_iterator:
-        epoch_iterator = tqdm(train_dataloader, desc="Iteration",
-                              disable=args.local_rank not in [-1, 0])
+        epoch_iterator = tqdm(
+            train_dataloader,
+            desc="Iteration",
+            disable=args.local_rank not in [-1, 0]
+        )
         for step, batch in enumerate(epoch_iterator):
             model.train()
             batch = {k: v.to(args.device) for k, v in batch.items() if k not in ['example_id', 'qid']}
@@ -215,17 +238,14 @@ def train(args, train_dataset, model, tokenizer):
 
                 if args.local_rank in [-1, 0] and args.save_steps > 0 and global_step % args.save_steps == 0:
                     # Save model checkpoint
-                    output_dir = os.path.join(
-                        args.output_dir, 'checkpoint-{}'.format(global_step))
+                    output_dir = os.path.join(args.output_dir, f'checkpoint-{global_step}')
                     if not os.path.exists(output_dir):
                         os.makedirs(output_dir)
                     # Take care of distributed/parallel training
-                    model_to_save = model.module if hasattr(
-                        model, 'module') else model
+                    model_to_save = model.module if hasattr(model, 'module') else model
                     model_to_save.save_pretrained(output_dir)
-                    torch.save(args, os.path.join(
-                        output_dir, 'training_args.bin'))
-                    logger.info("Saving model checkpoint to %s", output_dir)
+                    torch.save(args, os.path.join(output_dir, 'training_args.bin'))
+                    logger.info(f"Saving model checkpoint to {output_dir}")
 
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
@@ -278,8 +298,7 @@ def evaluate(args, model, tokenizer, prefix=""):
 
     with open(args.qrels) as handle:
         qrels = json.load(handle)
-    evaluator = pytrec_eval.RelevanceEvaluator(
-            qrels, {'ndcg', 'set_recall'})
+    evaluator = pytrec_eval.RelevanceEvaluator(qrels, {'ndcg', 'set_recall'})
     metrics = evaluator.evaluate(run)
 
     mrr_list = [v['ndcg'] for v in metrics.values()]
@@ -296,11 +315,15 @@ def evaluate(args, model, tokenizer, prefix=""):
 def gen_passage_rep(args, model, tokenizer):
     # dataset, examples, features = load_and_cache_examples(args, tokenizer, evaluate=True, output_examples=True)
     DatasetClass = GenPassageRepDataset
-    dataset = DatasetClass( args.gen_passage_rep_input,tokenizer,
-                           args.load_small, 
-                           passage_max_seq_length=args.passage_max_seq_length, passages_dict=passages_dict,
-                                 tables_dict=tables_dict,
-                                 images_dict=images_dict,idx_id_list=idx_id_list)
+    dataset = DatasetClass(
+        args.gen_passage_rep_input,tokenizer,
+        args.load_small, 
+        passage_max_seq_length=args.passage_max_seq_length,
+        passages_dict=passages_dict,
+        tables_dict=tables_dict,
+        images_dict=images_dict,
+        idx_id_list=idx_id_list
+    )
 
     if not os.path.exists(args.output_dir) and args.local_rank in [-1, 0]:
         os.makedirs(args.output_dir)
@@ -311,7 +334,11 @@ def gen_passage_rep(args, model, tokenizer):
     #     dataset) if args.local_rank == -1 else DistributedSampler(dataset)
     eval_sampler = SequentialSampler(dataset)
     eval_dataloader = DataLoader(
-        dataset, sampler=eval_sampler, batch_size=args.eval_batch_size, num_workers=args.num_workers)
+        dataset,
+        sampler=eval_sampler,
+        batch_size=args.eval_batch_size,
+        num_workers=args.num_workers
+    )
 
     # multi-gpu evaluate
     if args.n_gpu > 1:
@@ -320,8 +347,8 @@ def gen_passage_rep(args, model, tokenizer):
 
     # Eval!
     logger.info("***** Gem passage rep *****")
-    logger.info("  Num examples = %d", len(dataset))
-    logger.info("  Batch size = %d", args.eval_batch_size)
+    logger.info(f"  Num examples = {len(dataset)}")
+    logger.info(f"  Batch size = {args.eval_batch_size}")
     run_dict = {}
     start_time = timeit.default_timer()
     fout = open(args.gen_passage_rep_output, 'w')
@@ -331,11 +358,9 @@ def gen_passage_rep(args, model, tokenizer):
     for batch in tqdm(eval_dataloader, desc="Evaluating"):
 
         model.eval()
-        example_ids = np.asarray(
-            batch['example_id']).reshape(-1).tolist()
+        example_ids = np.asarray(batch['example_id']).reshape(-1).tolist()
         passage_ids.extend(example_ids)
-        batch = {k: v.to(args.device)
-                 for k, v in batch.items() if k != 'example_id'}
+        batch = {k: v.to(args.device) for k, v in batch.items() if k != 'example_id'}
         with torch.no_grad():
             inputs = {}
             inputs['passage_input_ids'] = batch['passage_input_ids']
@@ -365,17 +390,19 @@ def retrieve(args, model, tokenizer, prefix=''):
 
     # dataset, examples, features = load_and_cache_examples(args, tokenizer, evaluate=True, output_examples=True)
     DatasetClass = RetrieverDataset
-    dataset = DatasetClass(eval_file, tokenizer,
-                           args.load_small, args.history_num,
-                           query_max_seq_length=args.query_max_seq_length,
-                           passage_max_seq_length=args.passage_max_seq_length,
-                           is_pretraining=args.is_pretraining,
-                           given_query=True,
-                           given_passage=False,
-                           only_positive_passage=args.only_positive_passage,
-                           passages_dict=passages_dict,
-                           tables_dict=tables_dict,
-                           images_dict=images_dict)
+    dataset = DatasetClass(
+        eval_file, tokenizer,
+        args.load_small, args.history_num,
+        query_max_seq_length=args.query_max_seq_length,
+        passage_max_seq_length=args.passage_max_seq_length,
+        is_pretraining=args.is_pretraining,
+        given_query=True,
+        given_passage=False,
+        only_positive_passage=args.only_positive_passage,
+        passages_dict=passages_dict,
+        tables_dict=tables_dict,
+        images_dict=images_dict
+    )
 
     args.eval_batch_size = args.per_gpu_eval_batch_size * max(1, args.n_gpu)
     # Note that DistributedSampler samples randomly
@@ -383,7 +410,11 @@ def retrieve(args, model, tokenizer, prefix=''):
     #     dataset) if args.local_rank == -1 else DistributedSampler(dataset)
     eval_sampler = SequentialSampler(dataset)
     eval_dataloader = DataLoader(
-        dataset, sampler=eval_sampler, batch_size=args.eval_batch_size, num_workers=args.num_workers)
+        dataset,
+        sampler=eval_sampler,
+        batch_size=args.eval_batch_size,
+        num_workers=args.num_workers
+    )
 
     # multi-gpu evaluate
     if args.n_gpu > 1:
@@ -391,17 +422,15 @@ def retrieve(args, model, tokenizer, prefix=''):
         # model.to(f'cuda:{model.device_ids[0]}')
         
     # Eval!
-    logger.info("***** Retrieve {} *****".format(prefix))
-    logger.info("  Num examples = %d", len(dataset))
-    logger.info("  Batch size = %d", args.eval_batch_size)
+    logger.info(f"***** Retrieve {prefix} *****")
+    logger.info(f"  Num examples = {len(dataset)}")
+    logger.info(f"  Batch size = {args.eval_batch_size}")
     all_qids = []
     all_query_reps = []
     for batch in tqdm(eval_dataloader, desc="Evaluating"):
         model.eval()
-        qids = np.asarray(
-            batch['qid']).reshape(-1).tolist()
-        batch = {k: v.to(args.device)
-                 for k, v in batch.items() if k not in ['example_id', 'qid']}
+        qids = np.asarray(batch['qid']).reshape(-1).tolist()
+        batch = {k: v.to(args.device) for k, v in batch.items() if k not in ['example_id', 'qid']}
         with torch.no_grad():
             inputs = {}
             inputs['query_input_ids'] = batch['query_input_ids']
@@ -570,22 +599,19 @@ parser.add_argument("--num_workers", default=4, type=int, required=False,
 args, unknown = parser.parse_known_args()
 
 if os.path.exists(args.output_dir) and os.listdir(args.output_dir) and args.do_train and not args.overwrite_output_dir:
-    raise ValueError(
-        "Output directory ({}) already exists and is not empty. Use --overwrite_output_dir to overcome.".format(args.output_dir))
+    raise ValueError("Output directory ({}) already exists and is not empty. Use --overwrite_output_dir to overcome.".format(args.output_dir))
 
 # Setup distant debugging if needed
 if args.server_ip and args.server_port:
     # Distant debugging - see https://code.visualstudio.com/docs/python/debugging#_attach-to-a-local-script
     import ptvsd
     print("Waiting for debugger attach")
-    ptvsd.enable_attach(
-        address=(args.server_ip, args.server_port), redirect_output=True)
+    ptvsd.enable_attach(address=(args.server_ip, args.server_port), redirect_output=True)
     ptvsd.wait_for_attach()
 
 # Setup CUDA, GPU & distributed training
 if args.local_rank == -1 or args.no_cuda:
-    device = torch.device(
-        "cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
     args.n_gpu = torch.cuda.device_count()
     torch.cuda.set_device(0)
 else:  # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
@@ -596,11 +622,18 @@ else:  # Initializes the distributed backend which will take care of sychronizin
 args.device = device
 
 # Setup logging
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
-                    datefmt='%m/%d/%Y %H:%M:%S',
-                    level=logging.INFO if args.local_rank in [-1, 0] else logging.WARN)
-logger.warning("Process rank: %s, device: %s, n_gpu: %s, distributed training: %s, 16-bits training: %s",
-               args.local_rank, device, args.n_gpu, bool(args.local_rank != -1), args.fp16)
+logging.basicConfig(
+    format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
+    datefmt='%m/%d/%Y %H:%M:%S',
+    level=logging.INFO if args.local_rank in [-1, 0] else logging.WARN
+)
+logger.warning(
+    f"Process rank: {args.local_rank}, " + 
+    f"device: {device}, " +
+    f"n_gpu: {args.n_gpu}, " +
+    f"distributed training: {bool(args.local_rank != -1)}, " +
+    f"16-bits training: {args.fp16}"
+)
 
 # Set seed
 set_seed(args)
@@ -612,18 +645,23 @@ if args.local_rank not in [-1, 0]:
 
 args.model_type = args.model_type.lower()
 config_class, model_class, tokenizer_class = MODEL_CLASSES[args.model_type]
-config = config_class.from_pretrained(args.config_name if args.config_name else args.model_name_or_path,
-                                      cache_dir=args.cache_dir if args.cache_dir else None)
+config = config_class.from_pretrained(
+    args.config_name if args.config_name else args.model_name_or_path,
+    cache_dir=args.cache_dir if args.cache_dir else None
+)
 config.proj_size = args.proj_size
 
-tokenizer = tokenizer_class.from_pretrained(args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
-                                            do_lower_case=args.do_lower_case,
-                                            cache_dir=args.cache_dir if args.cache_dir else None)
-model = model_class.from_pretrained(args.model_name_or_path,
-                                    from_tf=bool(
-                                        '.ckpt' in args.model_name_or_path),
-                                    config=config,
-                                    cache_dir=args.cache_dir if args.cache_dir else None)
+tokenizer = tokenizer_class.from_pretrained(
+    args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
+    do_lower_case=args.do_lower_case,
+    cache_dir=args.cache_dir if args.cache_dir else None
+)
+model = model_class.from_pretrained(
+    args.model_name_or_path,
+    from_tf=bool('.ckpt' in args.model_name_or_path),
+    config=config,
+    cache_dir=args.cache_dir if args.cache_dir else None
+)
 model = model_class.from_pretrained(args.retrieve_checkpoint)
 
 if args.local_rank == 0:
@@ -642,8 +680,7 @@ if args.fp16:
         import apex
         apex.amp.register_half_function(torch, 'einsum')
     except ImportError:
-        raise ImportError(
-            "Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
+        raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
 
 if args.retrieve:
     args.gen_passage_rep = False
@@ -661,60 +698,58 @@ if args.gen_passage_rep:
 
 
 
-idx_id_list=[]
+idx_id_list = []
 #load passages to passages_dict
-passages_dict={}
+passages_dict = {}
 with open(args.passages_file,'r') as f:
-    lines=f.readlines()
+    lines = f.readlines()
     for line in lines:
-        line=json.loads(line.strip())
-        passages_dict[line['id']]=line['text']
+        line = json.loads(line.strip())
+        passages_dict[line['id']] = line['text']
         idx_id_list.append((line['id'],'text'))
 
 
 #load tables to tables_dict
 # !!!!!!!!!!!!!!!!!!!!!!!还需要精致的修改
-tables_dict={}
+tables_dict = {}
 with open(args.tables_file,'r') as f:
-    lines=f.readlines()
+    lines = f.readlines()
     for line in lines:
-        line=json.loads(line.strip())
+        line = json.loads(line.strip())
         table_context = ''
         for row_data in line['table']["table_rows"]:
             for cell in row_data:
-                table_context=table_context+" "+cell['text']
-        tables_dict[line['id']]=table_context
+                table_context = table_context + " " + cell['text']
+        tables_dict[line['id']] = table_context
         idx_id_list.append((line['id'],'table'))
 #load images to images_dict
 # !!!!!!!!!!!!!!!!!!!!!!!还需要精致的修改
-images_dict={}
+images_dict = {}
 with open(args.images_file,'r') as f:
-    lines=f.readlines()
+    lines = f.readlines()
     for line in lines:
-        line=json.loads(line.strip())
-        images_dict[line['id']]=args.images_path+line['path']
+        line = json.loads(line.strip())
+        images_dict[line['id']] = args.images_path + line['path']
         idx_id_list.append((line['id'],'image'))
-
-
-
 
 # Training
 if args.do_train:
     DatasetClass = RetrieverDataset
-    train_dataset = DatasetClass(args.train_file, tokenizer,
-                                 args.load_small, args.history_num,
-                                 query_max_seq_length=args.query_max_seq_length,
-                                 passage_max_seq_length=args.passage_max_seq_length,
-                                 is_pretraining=True,
-                                 given_query=True,
-                                 given_passage=True, 
-                                 only_positive_passage=args.only_positive_passage,
-                                 passages_dict=passages_dict,
-                                 tables_dict=tables_dict,
-                                 images_dict=images_dict)
+    train_dataset = DatasetClass(
+        args.train_file, tokenizer,
+        args.load_small, args.history_num,
+        query_max_seq_length=args.query_max_seq_length,
+        passage_max_seq_length=args.passage_max_seq_length,
+        is_pretraining=True,
+        given_query=True,
+        given_passage=True, 
+        only_positive_passage=args.only_positive_passage,
+        passages_dict=passages_dict,
+        tables_dict=tables_dict,
+        images_dict=images_dict
+    )
     global_step, tr_loss = train(args, train_dataset, model, tokenizer)
-    logger.info(" global_step = %s, average loss = %s",
-                global_step, tr_loss)
+    logger.info(f" global_step = {global_step}, average loss = {tr_loss}")
 
 # Save the trained model and the tokenizer
 if args.do_train and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
@@ -722,13 +757,12 @@ if args.do_train and (args.local_rank == -1 or torch.distributed.get_rank() == 0
     if not os.path.exists(args.output_dir) and args.local_rank in [-1, 0]:
         os.makedirs(args.output_dir)
 
-    logger.info("Saving model checkpoint to %s", args.output_dir)
+    logger.info(f"Saving model checkpoint to {args.output_dir}")
     # Save a trained model, configuration and tokenizer using `save_pretrained()`.
     # They can then be reloaded using `from_pretrained()`
     # Take care of distributed/parallel training
     model_to_save = model.module if hasattr(model, 'module') else model
-    final_checkpoint_output_dir = os.path.join(
-        args.output_dir, 'checkpoint-{}'.format(global_step))
+    final_checkpoint_output_dir = os.path.join(args.output_dir, 'checkpoint-{}'.format(global_step))
     if not os.path.exists(final_checkpoint_output_dir):
         os.makedirs(final_checkpoint_output_dir)
 
@@ -736,14 +770,11 @@ if args.do_train and (args.local_rank == -1 or torch.distributed.get_rank() == 0
     tokenizer.save_pretrained(args.output_dir)
 
     # Good practice: save your training arguments together with the trained model
-    torch.save(args, os.path.join(
-        final_checkpoint_output_dir, 'training_args.bin'))
+    torch.save(args, os.path.join(final_checkpoint_output_dir, 'training_args.bin'))
 
     # Load a trained model and vocabulary that you have fine-tuned
-    model = model_class.from_pretrained(
-        final_checkpoint_output_dir, force_download=True)
-    tokenizer = tokenizer_class.from_pretrained(
-        args.output_dir, do_lower_case=args.do_lower_case)
+    model = model_class.from_pretrained(final_checkpoint_output_dir, force_download=True)
+    tokenizer = tokenizer_class.from_pretrained(args.output_dir, do_lower_case=args.do_lower_case)
     model.to(args.device)
 
 
@@ -756,30 +787,28 @@ results = {}
 max_recall = 0.0
 best_metrics = {}
 if args.do_eval and args.local_rank in [-1, 0]:
-    tokenizer = tokenizer_class.from_pretrained(
-        args.output_dir, do_lower_case=args.do_lower_case)
+    tokenizer = tokenizer_class.from_pretrained(args.output_dir, do_lower_case=args.do_lower_case)
     tb_writer = SummaryWriter(os.path.join(args.output_dir, 'logs'))
     checkpoints = [args.output_dir]
     if args.eval_all_checkpoints:
-        checkpoints = list(os.path.dirname(c) for c in sorted(
-            glob.glob(args.output_dir + '/**/' + WEIGHTS_NAME, recursive=True)))
+        checkpoints = list(
+            os.path.dirname(c) for c in sorted(glob.glob(args.output_dir + '/**/' + WEIGHTS_NAME, recursive=True))
+        )
 #         logging.getLogger("transformers.modeling_utils").setLevel(
 #             logging.WARN)  # Reduce model loading logs
 
-    logger.info("Evaluate the following checkpoints: %s", checkpoints)
+    logger.info(f"Evaluate the following checkpoints: {checkpoints}")
 
     for checkpoint in checkpoints:
         # Reload the model
-        global_step = checkpoint.split(
-            '-')[-1] if len(checkpoint) > 1 else ""
+        global_step = checkpoint.split('-')[-1] if len(checkpoint) > 1 else ""
         print(global_step, 'global_step')
 
 ########################################please delete
 
 
 
-        model = model_class.from_pretrained(
-            checkpoint, force_download=True)
+        model = model_class.from_pretrained(checkpoint, force_download=True)
         model.to(args.device)
 
         # Evaluate
@@ -791,25 +820,23 @@ if args.do_eval and args.local_rank in [-1, 0]:
             best_metrics['global_step'] = global_step
 
         for key, value in result.items():
-            tb_writer.add_scalar(
-                'eval_{}'.format(key), value, global_step)
+            tb_writer.add_scalar(f'eval_{key}', value, global_step)
 
-        result = dict((k + ('_{}'.format(global_step) if global_step else ''), v)
-                      for k, v in result.items())
+        result = dict(
+            (k + ('_{}'.format(global_step) if global_step else ''), v) for k, v in result.items()
+        )
         results.update(result)
 
-    best_metrics_file = os.path.join(
-        args.output_dir, 'predictions', 'best_metrics.json')
+    best_metrics_file = os.path.join(args.output_dir, 'predictions', 'best_metrics.json')
     with open(best_metrics_file, 'w') as fout:
         json.dump(best_metrics, fout)
         
-    all_results_file = os.path.join(
-        args.output_dir, 'predictions', 'all_results.json')
+    all_results_file = os.path.join(args.output_dir, 'predictions', 'all_results.json')
     with open(all_results_file, 'w') as fout:
         json.dump(results, fout)
 
-    logger.info("Results: {}".format(results))
-    logger.info("best metrics: {}".format(best_metrics))
+    logger.info(f"Results: {results}")
+    logger.info(f"best metrics: {best_metrics}")
 
 
 # In[10]:
@@ -817,35 +844,30 @@ if args.do_eval and args.local_rank in [-1, 0]:
 
 if args.do_test and args.local_rank in [-1, 0]:
     best_global_step = best_metrics['global_step']
-    best_checkpoint = os.path.join(
-        args.output_dir, 'checkpoint-{}'.format(best_global_step))
+    best_checkpoint = os.path.join(args.output_dir, f'checkpoint-{best_global_step}')
     logger.info("Test the best checkpoint: %s", best_checkpoint)
 
-    model = model_class.from_pretrained(
-        best_checkpoint, force_download=True)
+    model = model_class.from_pretrained(best_checkpoint, force_download=True)
     model.to(args.device)
 
     # Evaluate
     result = evaluate(args, model, tokenizer, prefix='test')
 
-    test_metrics_file=os.path.join(
-        args.output_dir, 'predictions', 'test_metrics.json')
+    test_metrics_file=os.path.join(args.output_dir, 'predictions', 'test_metrics.json')
     with open(test_metrics_file, 'w') as fout:
         json.dump(result, fout)
 
-    logger.info("Test Result: {}".format(result))
+    logger.info(f"Test Result: {result}")
 
 
 # In[11]:
 
 
 if args.gen_passage_rep and args.local_rank in [-1, 0]:
-    tokenizer = tokenizer_class.from_pretrained(
-        args.output_dir, do_lower_case=args.do_lower_case)
-    logger.info("Gen passage rep with: %s", args.retrieve_checkpoint)
+    tokenizer = tokenizer_class.from_pretrained(args.output_dir, do_lower_case=args.do_lower_case)
+    logger.info(f"Gen passage rep with: {args.retrieve_checkpoint}")
 
-    model = model_class.from_pretrained(
-        args.retrieve_checkpoint, force_download=True)
+    model = model_class.from_pretrained(args.retrieve_checkpoint, force_download=True)
     model.to(args.device)
 
     # Evaluate

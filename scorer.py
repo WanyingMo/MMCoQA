@@ -1,4 +1,5 @@
 import json, string, re
+import os
 from collections import Counter, defaultdict
 from argparse import ArgumentParser
 
@@ -127,44 +128,42 @@ def compute_span_overlap(pred_span, gt_span, text):
 
 def eval_fn(val_results, model_results, verbose):
 
-
-  qid_modality={}
-  with open('/common/home/wm318/MMCoQA-main/MMCoQA_test.txt', "r") as f:
-      lines=f.readlines()
+  qid_modality = {}
+  with open('dataset/MMCoQA_test.txt', "r") as f:
+      lines = f.readlines()
       for line in lines:
         json.loads(line.strip())
         entry = json.loads(line.strip())
-        if entry['question_type']=="text":
-            modality_label=0
-        elif entry['question_type']=="table":
-            modality_label=1        
+        if entry['question_type'] == "text":
+            modality_label = 0
+        elif entry['question_type'] == "table":
+            modality_label = 1        
         else:
-            modality_label=2
+            modality_label = 2
 
-        qid_modality[entry["qid"]]=modality_label
-  with open('/common/home/wm318/MMCoQA-main/MMCoQA_dev.txt', "r") as f:
-      lines=f.readlines()
+        qid_modality[entry["qid"]] = modality_label
+  with open('dataset/MMCoQA_dev.txt', "r") as f:
+      lines = f.readlines()
       for line in lines:
         json.loads(line.strip())
         entry = json.loads(line.strip())
-        if entry['question_type']=="text":
-            modality_label=0
-        elif entry['question_type']=="table":
-            modality_label=1        
+        if entry['question_type'] == "text":
+            modality_label = 0
+        elif entry['question_type'] == "table":
+            modality_label = 1        
         else:
-            modality_label=2
+            modality_label = 2
 
-        qid_modality[entry["qid"]]=modality_label
+        qid_modality[entry["qid"]] = modality_label
   f1s = []
   human_f1 = []
 
-  EM=[]
+  EM = []
 
   modality_performance_across_turns={}
 
   for p in val_results:
         par=json.loads(p.strip())
-
 
         did = par['qid']
         q_idx = par['qid']
@@ -179,47 +178,47 @@ def eval_fn(val_results, model_results, verbose):
           print('error: miss some predictions')
           continue
 
-
-
         scores_for_ground_truths = []
         for ground_truth in val_spans:
-          pred_span=str(pred_span)
-          ground_truth=str(ground_truth)
+          pred_span = str(pred_span)
+          ground_truth = str(ground_truth)
           score = f1_score(pred_span.lower(), ground_truth.lower())
           scores_for_ground_truths.append(score)
         f1s.append(max(scores_for_ground_truths, key=lambda x: x))
         human_f1.append(hf1)
 
-        tag=True
+        tag = True
         for ground_truth in val_spans:
-          pred_span=str(pred_span)
-          ground_truth=str(ground_truth)
+          pred_span = str(pred_span)
+          ground_truth = str(ground_truth)
           if pred_span.lower() != ground_truth.lower():
-            tag=False
+            tag = False
 
         if(tag):
           EM.append(1.0)
         else:
           EM.append(0.0)
 
-        turn=q_idx.split("_")[2]
+        turn = q_idx.split("_")[2]
         if turn not in modality_performance_across_turns:
-          modality_performance_across_turns[turn]={0:[],1:[],2:[]}
+          modality_performance_across_turns[turn] = {0: [], 1: [], 2: []}
 
         modality_performance_across_turns[turn][qid_modality[q_idx]].append(max(scores_for_ground_truths, key=lambda x: x))
 
 
-  metric_json = {"f1": 100.0 * sum(f1s) / len(f1s), "human_f1": 100.0 * sum(human_f1) / len(human_f1),"EM":sum(EM) / len(EM)}
-
+  metric_json = {
+    "f1": 100.0 * sum(f1s) / len(f1s),
+    "human_f1": 100.0 * sum(human_f1) / len(human_f1),
+    "EM":sum(EM) / len(EM)
+  }
 
   print("=======================")
-  print('len(f1s)', len(f1s))
-  print('len(human_f1)', len(human_f1))
-  print('Overall F1', 100.0 * sum(f1s) / len(f1s))
-  print('Human F1', 100.0 * sum(human_f1) / len(human_f1))
-  print('EM', sum(EM) / len(EM))
+  print(f"len(f1s): {len(f1s)}")
+  print(f"len(human_f1): {len(human_f1)}")
+  print(f"Overall F1: {metric_json['f1']}")
+  print(f"Human F1: {metric_json['human_f1']}")
+  print(f"EM: {metric_json['EM']}")
   print("=======================")
-
 
   # for turn in modality_performance_across_turns:
   #   print('turn',turn)
@@ -268,10 +267,8 @@ def eval_fn_for_sig_test(val_results, model_results, verbose):
 
         pred_span, pred_yesno, pred_followup = model_results[did][q_idx]
 
-        max_overlap, _ = metric_max_over_ground_truths( \
-          pred_span, val_spans, par['context'])
-        max_f1 = leave_one_out_max( \
-          pred_span, val_spans, par['context'])
+        max_overlap, _ = metric_max_over_ground_truths(pred_span, val_spans, par['context'])
+        max_f1 = leave_one_out_max(pred_span, val_spans, par['context'])
         unfiltered_f1s.append(max_f1)
 
         # dont eval on low agreement instances
@@ -307,7 +304,15 @@ def eval_fn_for_sig_test(val_results, model_results, verbose):
   yesno_score = (100.0 * sum(yes_nos) / len(yes_nos))
   followup_score = (100.0 * sum(followups) / len(followups))
   unanswerable_score = (100.0 * sum(unanswerables) / len(unanswerables))
-  metric_json = {"unfiltered_f1": unfiltered_f1, "f1": overall_f1, "HEQ": HEQ_score, "DHEQ": DHEQ_score, "yes/no": yesno_score, "followup": followup_score, "unanswerable_acc": unanswerable_score}
+  metric_json = {
+    "unfiltered_f1": unfiltered_f1,
+    "f1": overall_f1,
+    "HEQ": HEQ_score,
+    "DHEQ": DHEQ_score,
+    "yes/no": yesno_score,
+    "followup": followup_score,
+    "unanswerable_acc": unanswerable_score
+  }
   if verbose:
     print("=======================")
     display_counter('Overlap Stats', span_overlap_stats, f1_stats)
@@ -333,7 +338,7 @@ def quac_eval(val_file, output_final_prediction_file):
   args, unknown = parser.parse_known_args()
 
   with open(val_file, "r") as f:
-      val=f.readlines()
+      val = f.readlines()
 #  val = json.load(open(val_file, 'r'))['data']
   preds = defaultdict(dict)
   total = 0

@@ -35,7 +35,7 @@ def image_transform(path):
     # Prevent the biggest axis from being more than max_size
     # If bigger, scale it down
     if np.round(im_scale * im_size_max) > MAX_SIZE:
-        im_scale = self.MAX_SIZE / im_size_max
+        im_scale = MAX_SIZE / im_size_max
 
     im = cv2.resize(
         im, None, None, fx=im_scale, fy=im_scale, interpolation=cv2.INTER_LINEAR
@@ -47,8 +47,8 @@ def image_transform(path):
     return img, im_scale, im_info
 
 
-img, im_scale, im_info=image_transform("/common/home/wm318/MMCoQA-main/final_data/multimodal_evidence_collection/images/final_dataset_images/35b31d9b4f723f806fd32662ef29edf7.jpg")
+img, im_scale, im_info = image_transform("/common/home/wm318/MMCoQA-main/final_data/multimodal_evidence_collection/images/final_dataset_images/35b31d9b4f723f806fd32662ef29edf7.jpg")
 
-print('img',img.shape)
-print('im_scale',im_scale)
-print('im_info',im_info)
+print('img', img.shape)
+print('im_scale', im_scale)
+print('im_info', im_info)

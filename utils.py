@@ -48,19 +48,21 @@ class QuacExample(object):
     For examples without an answer, the start and end position are -1.
     """
 
-    def __init__(self,
-                 example_id,
-                 qas_id,
-                 question_text,
-                 doc_tokens,
-                 orig_answer_text=None,
-                 start_position=None,
-                 end_position=None,
-                 is_impossible=None, 
-                 followup=None, 
-                 yesno=None, 
-                 retrieval_label=None, 
-                 history=None):
+    def __init__(
+            self,
+            example_id,
+            qas_id,
+            question_text,
+            doc_tokens,
+            orig_answer_text=None,
+            start_position=None,
+            end_position=None,
+            is_impossible=None, 
+            followup=None, 
+            yesno=None, 
+            retrieval_label=None, 
+            history=None
+    ):
         self.example_id = example_id
         self.qas_id = qas_id
         self.question_text = question_text
@@ -79,22 +81,21 @@ class QuacExample(object):
 
     def __repr__(self):
         s = ""
-        s += "example_id: %s" % (self.example_id)
-        s += "qas_id: %s" % (self.qas_id)
-        s += ", question_text: %s" % (
-            self.question_text)
-        s += ", doc_tokens: [%s]" % (" ".join(self.doc_tokens))
+        s += f"example_id: {self.example_id}, "
+        s += f"qas_id: {self.qas_id}, "
+        s += f"question_text: {self.question_text}, "
+        s += f"doc_tokens: [{' '.join(self.doc_tokens)}], "
         if self.start_position:
-            s += ", start_position: %d" % (self.start_position)
+            s += f"start_position: {self.start_position}, "
         if self.end_position:
-            s += ", end_position: %d" % (self.end_position)
+            s += f"end_position: {self.end_position}, "
         if self.is_impossible:
-            s += ", is_impossible: %r" % (self.is_impossible)
-        s += ', followup: {}'.format(self.followup)
-        s += ', yesno: {}'.format(self.yesno)
+            s += f"is_impossible: {self.is_impossible}, "
+        s += f'followup: {self.followup}, '
+        s += f'yesno: {self.yesno}, '
         if self.retrieval_label:
-            s += ', retrieval_label: {}'.format(self.retrieval_label)
-        s += ', history: {}'.format(self.history)
+            s += f'retrieval_label: {self.retrieval_label}, '
+        s += f'history: {self.history}'
             
         return s
 
@@ -102,23 +103,25 @@ class QuacExample(object):
 class InputFeatures(object):
     """A single set of features of data."""
 
-    def __init__(self,
-                 unique_id,
-                 example_id,
-                 doc_span_index,
-                 tokens,
-                 token_to_orig_map,
-                 token_is_max_context,
-                 input_ids,
-                 input_mask,
-                 segment_ids,
-                 cls_index,
-                 p_mask,
-                 paragraph_len,
-                 start_position=None,
-                 end_position=None,
-                 is_impossible=None, 
-                 retrieval_label=None):
+    def __init__(
+            self,
+            unique_id,
+            example_id,
+            doc_span_index,
+            tokens,
+            token_to_orig_map,
+            token_is_max_context,
+            input_ids,
+            input_mask,
+            segment_ids,
+            cls_index,
+            p_mask,
+            paragraph_len,
+            start_position=None,
+            end_position=None,
+            is_impossible=None, 
+            retrieval_label=None
+    ):
         # we have exactly 1 feature for every example,
         # so the unique id is the same with the example id
         self.unique_id = unique_id 
@@ -139,10 +142,12 @@ class InputFeatures(object):
         self.retrieval_label = retrieval_label
 
 class LazyQuacDataset(Dataset):
-    def __init__(self, filename, max_seq_length, tokenizer, 
-                 load_small, history_num, prepend_history_questions, 
-                 prepend_history_answers, embed_history_answers, 
-                 is_training=True):
+    def __init__(
+        self, filename, max_seq_length, tokenizer, 
+        load_small, history_num, prepend_history_questions, 
+        prepend_history_answers, embed_history_answers, 
+        is_training=True
+    ):
         
         self._filename = filename
         self._max_seq_length = max_seq_length
@@ -227,29 +232,28 @@ class LazyQuacDataset(Dataset):
                 # Note that this means for training mode, every example is NOT
                 # guaranteed to be preserved.
                 actual_text = " ".join(doc_tokens[start_position:(end_position + 1)])
-                cleaned_answer_text = " ".join(
-                    whitespace_tokenize(orig_answer_text))
+                cleaned_answer_text = " ".join(whitespace_tokenize(orig_answer_text))
                 if actual_text.find(cleaned_answer_text) == -1:
-                    logger.warning("Could not find answer: '%s' vs. '%s'",
-                                   actual_text, cleaned_answer_text)
+                    logger.warning(f"Could not find answer: '{actual_text}' vs. '{cleaned_answer_text}'")
             else:
                 start_position = -1
                 end_position = -1
                 orig_answer_text = ""
                 
         example = QuacExample(
-                    example_id=example_id,
-                    qas_id=qas_id,
-                    question_text=question_text,
-                    doc_tokens=doc_tokens,
-                    orig_answer_text=orig_answer_text,
-                    start_position=start_position,
-                    end_position=end_position,
-                    is_impossible=is_impossible,
-                    followup=entry['followup'], 
-                    yesno=entry['yesno'], 
-                    retrieval_label=int(entry['retrieval_label']), 
-                    history=history)
+            example_id=example_id,
+            qas_id=qas_id,
+            question_text=question_text,
+            doc_tokens=doc_tokens,
+            orig_answer_text=orig_answer_text,
+            start_position=start_position,
+            end_position=end_position,
+            is_impossible=is_impossible,
+            followup=entry['followup'], 
+            yesno=entry['yesno'], 
+            retrieval_label=int(entry['retrieval_label']), 
+            history=history
+        )
         
         feature = convert_example_to_feature(example, self._tokenizer, is_training=self._is_training)
         
@@ -261,27 +265,29 @@ class LazyQuacDataset(Dataset):
             
         
         if self._is_training:      
-            return {'input_ids': np.asarray(feature.input_ids), 
-                    'segment_ids': np.asarray(feature.segment_ids), 
-                    'input_mask': np.asarray(feature.input_mask), 
-                    # 'cls_index': feature.cls_index, 
-                    # 'p_mask': feature.p_mask, 
-                    'start_position': feature.start_position, 
-                    'end_position': feature.end_position, 
-                    'retrieval_label': feature.retrieval_label}
+            return {
+                'input_ids': np.asarray(feature.input_ids), 
+                'segment_ids': np.asarray(feature.segment_ids), 
+                'input_mask': np.asarray(feature.input_mask), 
+                # 'cls_index': feature.cls_index, 
+                # 'p_mask': feature.p_mask, 
+                'start_position': feature.start_position, 
+                'end_position': feature.end_position, 
+                'retrieval_label': feature.retrieval_label
+            }
         else:
-            return {'input_ids': np.asarray(feature.input_ids), 
-                    'segment_ids': np.asarray(feature.segment_ids), 
-                    'input_mask': np.asarray(feature.input_mask), 
-                    # 'cls_index': feature.cls_index, 
-                    # 'p_mask': feature.p_mask, 
-                    'example_id': feature.example_id}
+            return {
+                'input_ids': np.asarray(feature.input_ids), 
+                'segment_ids': np.asarray(feature.segment_ids), 
+                'input_mask': np.asarray(feature.input_mask), 
+                # 'cls_index': feature.cls_index, 
+                # 'p_mask': feature.p_mask, 
+                'example_id': feature.example_id
+            }
         
 
     def __len__(self):
         return self._total_data
-
-
     
 class LazyQuacDatasetGlobal(LazyQuacDataset):
     # when the global mode is on, we ignore the weak labels for answers
@@ -346,29 +352,28 @@ class LazyQuacDatasetGlobal(LazyQuacDataset):
                     # Note that this means for training mode, every example is NOT
                     # guaranteed to be preserved.
                     actual_text = " ".join(doc_tokens[start_position:(end_position + 1)])
-                    cleaned_answer_text = " ".join(
-                        whitespace_tokenize(orig_answer_text))
+                    cleaned_answer_text = " ".join(whitespace_tokenize(orig_answer_text))
                     if actual_text.find(cleaned_answer_text) == -1:
-                        logger.warning("Could not find answer: '%s' vs. '%s'",
-                                       actual_text, cleaned_answer_text)
+                        logger.warning(f"Could not find answer: '{actual_text}' vs. '{cleaned_answer_text}'")
                 else:
                     start_position = -1
                     end_position = -1
                     orig_answer_text = ""
 
             example = QuacExample(
-                        example_id=example_id,
-                        qas_id=qas_id,
-                        question_text=question_text,
-                        doc_tokens=doc_tokens,
-                        orig_answer_text=orig_answer_text,
-                        start_position=start_position,
-                        end_position=end_position,
-                        is_impossible=is_impossible,
-                        followup=entry['followup'], 
-                        yesno=entry['yesno'], 
-                        retrieval_label=retrieval_label, 
-                        history=history)
+                example_id=example_id,
+                qas_id=qas_id,
+                question_text=question_text,
+                doc_tokens=doc_tokens,
+                orig_answer_text=orig_answer_text,
+                start_position=start_position,
+                end_position=end_position,
+                is_impossible=is_impossible,
+                followup=entry['followup'], 
+                yesno=entry['yesno'], 
+                retrieval_label=retrieval_label, 
+                history=history
+            )
 
             feature = convert_example_to_feature(example, self._tokenizer, is_training=self._is_training)               
 
@@ -381,33 +386,39 @@ class LazyQuacDatasetGlobal(LazyQuacDataset):
             
             if self._is_training:
                 if retrieval_label:
-                    batch_feature = {'input_ids': np.asarray(feature.input_ids), 
-                                    'segment_ids': np.asarray(feature.segment_ids), 
-                                    'input_mask': np.asarray(feature.input_mask), 
-                                    # 'cls_index': feature.cls_index, 
-                                    # 'p_mask': feature.p_mask, 
-                                     # the true passge might be at any position
-                                    'start_position': feature.start_position + i * self._max_seq_length, 
-                                    'end_position': feature.end_position + i * self._max_seq_length, 
-                                    'retrieval_label': feature.retrieval_label}
+                    batch_feature = {
+                        'input_ids': np.asarray(feature.input_ids), 
+                        'segment_ids': np.asarray(feature.segment_ids), 
+                        'input_mask': np.asarray(feature.input_mask), 
+                        # 'cls_index': feature.cls_index, 
+                        # 'p_mask': feature.p_mask, 
+                            # the true passge might be at any position
+                        'start_position': feature.start_position + i * self._max_seq_length, 
+                        'end_position': feature.end_position + i * self._max_seq_length, 
+                        'retrieval_label': feature.retrieval_label
+                    }
                     
                     
                 else:
-                    batch_feature = {'input_ids': np.asarray(feature.input_ids), 
-                                    'segment_ids': np.asarray(feature.segment_ids), 
-                                    'input_mask': np.asarray(feature.input_mask), 
-                                    # 'cls_index': feature.cls_index, 
-                                    # 'p_mask': feature.p_mask, 
-                                    'start_position': -1, 
-                                    'end_position': -1, 
-                                    'retrieval_label': feature.retrieval_label}
+                    batch_feature = {
+                        'input_ids': np.asarray(feature.input_ids), 
+                        'segment_ids': np.asarray(feature.segment_ids), 
+                        'input_mask': np.asarray(feature.input_mask), 
+                        # 'cls_index': feature.cls_index, 
+                        # 'p_mask': feature.p_mask, 
+                        'start_position': -1, 
+                        'end_position': -1, 
+                        'retrieval_label': feature.retrieval_label
+                    }
             else:
-                batch_feature = {'input_ids': np.asarray(feature.input_ids), 
-                                'segment_ids': np.asarray(feature.segment_ids), 
-                                'input_mask': np.asarray(feature.input_mask), 
-                                # 'cls_index': feature.cls_index, 
-                                # 'p_mask': feature.p_mask, 
-                                'example_id': feature.example_id}
+                batch_feature = {
+                    'input_ids': np.asarray(feature.input_ids), 
+                    'segment_ids': np.asarray(feature.segment_ids), 
+                    'input_mask': np.asarray(feature.input_mask), 
+                    # 'cls_index': feature.cls_index, 
+                    # 'p_mask': feature.p_mask, 
+                    'example_id': feature.example_id
+                }
             
             batch.append(batch_feature)
         
@@ -432,14 +443,16 @@ def is_whitespace(c):
     return False
     
 
-def convert_example_to_feature(example, tokenizer, max_seq_length=512,
-                                 doc_stride=384, max_query_length=125, is_training=True,
-                                 cls_token_at_end=False,
-                                 cls_token='[CLS]', sep_token='[SEP]', pad_token=0,
-                                 sequence_a_segment_id=0, sequence_b_segment_id=1,
-                                 cls_token_segment_id=0, pad_token_segment_id=0,
-                                 mask_padding_with_zero=True,
-                                 sequence_a_is_doc=False):
+def convert_example_to_feature(
+        example, tokenizer, max_seq_length=512,
+        doc_stride=384, max_query_length=125, is_training=True,
+        cls_token_at_end=False,
+        cls_token='[CLS]', sep_token='[SEP]', pad_token=0,
+        sequence_a_segment_id=0, sequence_b_segment_id=1,
+        cls_token_segment_id=0, pad_token_segment_id=0,
+        mask_padding_with_zero=True,
+        sequence_a_is_doc=False
+):
     """Convert a single QuacExample to features (model input)"""
 
     query_tokens = tokenizer.tokenize(example.question_text)
@@ -482,8 +495,7 @@ def convert_example_to_feature(example, tokenizer, max_seq_length=512,
     
     # we set the doc_stride to 384, which is the max length of evidence text,
     # meaning that each evidence has exactly one _DocSpan
-    _DocSpan = collections.namedtuple(  # pylint: disable=invalid-name
-        "DocSpan", ["start", "length"])
+    _DocSpan = collections.namedtuple("DocSpan", ["start", "length"]) # pylint: disable=invalid-name
     doc_spans = []
     start_offset = 0
     while start_offset < len(all_doc_tokens):
@@ -535,8 +547,7 @@ def convert_example_to_feature(example, tokenizer, max_seq_length=512,
             split_token_index = doc_span.start + i
             token_to_orig_map[len(tokens)] = tok_to_orig_index[split_token_index]
 
-            is_max_context = _check_is_max_context(doc_spans, doc_span_index,
-                                                   split_token_index)
+            is_max_context = _check_is_max_context(doc_spans, doc_span_index, split_token_index)
             token_is_max_context[len(tokens)] = is_max_context
             tokens.append(all_doc_tokens[split_token_index])
             if not sequence_a_is_doc:
@@ -594,8 +605,7 @@ def convert_example_to_feature(example, tokenizer, max_seq_length=512,
             doc_start = doc_span.start
             doc_end = doc_span.start + doc_span.length - 1
             out_of_span = False
-            if not (tok_start_position >= doc_start and
-                    tok_end_position <= doc_end):
+            if not (tok_start_position >= doc_start and tok_end_position <= doc_end):
                 out_of_span = True
             if out_of_span:
                 start_position = 0
@@ -641,22 +651,23 @@ def convert_example_to_feature(example, tokenizer, max_seq_length=512,
                     "answer: %s" % (answer_text))
 
         feature = InputFeatures(
-                    unique_id=example.example_id,
-                    example_id=example.example_id,
-                    doc_span_index=doc_span_index,
-                    tokens=tokens,
-                    token_to_orig_map=token_to_orig_map,
-                    token_is_max_context=token_is_max_context,
-                    input_ids=input_ids,
-                    input_mask=input_mask,
-                    segment_ids=segment_ids,
-                    cls_index=cls_index,
-                    p_mask=p_mask,
-                    paragraph_len=paragraph_len,
-                    start_position=start_position,
-                    end_position=end_position,
-                    is_impossible=span_is_impossible, 
-                    retrieval_label=example.retrieval_label)
+            unique_id=example.example_id,
+            example_id=example.example_id,
+            doc_span_index=doc_span_index,
+            tokens=tokens,
+            token_to_orig_map=token_to_orig_map,
+            token_is_max_context=token_is_max_context,
+            input_ids=input_ids,
+            input_mask=input_mask,
+            segment_ids=segment_ids,
+            cls_index=cls_index,
+            p_mask=p_mask,
+            paragraph_len=paragraph_len,
+            start_position=start_position,
+            end_position=end_position,
+            is_impossible=span_is_impossible, 
+            retrieval_label=example.retrieval_label
+        )
 
     return feature
 
@@ -665,10 +676,10 @@ def convert_example_to_feature(example, tokenizer, max_seq_length=512,
 def image_transform(path):  ###下面还有一个_image_transform方法，要改的话不要忘记统一修改
 
     trans_f = torchvision.transforms.Compose([
-
         torchvision.transforms.Resize((512,512)),
         torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
+        torchvision.transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
 
 
     img = Image.open(path).convert("RGB")
@@ -684,27 +695,28 @@ def image_transform(path):  ###下面还有一个_image_transform方法，要改
     img = trans_f(img)
     img=img.numpy()
     return img
-                
 
-
-def gen_reader_features(qids, question_texts, answer_texts, answer_starts, passage_ids,
-                        passages, all_retrieval_labels, reader_tokenizer, max_seq_length, is_training=False, itemid_modalities=None,item_id_to_idx=None,images_titles=None):
+def gen_reader_features(
+        qids, question_texts, answer_texts, answer_starts, passage_ids,
+        passages, all_retrieval_labels, reader_tokenizer, max_seq_length, is_training=False, itemid_modalities=None, item_id_to_idx=None, images_titles=None
+):
     # print('all_retrieval_labels', all_retrieval_labels, type(all_retrieval_labels))
     batch_features = []
     all_examples, all_features = {}, {}
-    for (qas_id, question_text, answer_text, answer_start, pids_per_query,
-         paragraph_texts, retrieval_labels) in zip(qids, question_texts, answer_texts, answer_starts, 
-                                                   passage_ids, passages, all_retrieval_labels):
-        answer_text=str(answer_text)
+    for (
+        qas_id, question_text, answer_text, answer_start, pids_per_query, paragraph_texts, retrieval_labels
+    ) in zip(
+        qids, question_texts, answer_texts, answer_starts, passage_ids, passages, all_retrieval_labels
+    ):
+        answer_text = str(answer_text)
         # print('retrieval_labels', retrieval_labels)
         per_query_features = []
         for i, (pid, paragraph_text, retrieval_label) in enumerate(zip(pids_per_query, paragraph_texts, retrieval_labels)):
 
             if itemid_modalities[item_id_to_idx[pid]] == 'image':
-                image_path=paragraph_text
-                paragraph_text=images_titles[pid]
-            answer_start=paragraph_text.find(str(answer_text))
-
+                image_path = paragraph_text
+                paragraph_text = images_titles[pid]
+            answer_start = paragraph_text.find(str(answer_text))
 
             example_id = f'{qas_id}*{pid}'
             doc_tokens = []
@@ -727,7 +739,7 @@ def gen_reader_features(qids, question_texts, answer_texts, answer_starts, passa
             is_impossible = False
 
             if is_training:
-                if answer_text in ['CANNOTANSWER', 'NOTRECOVERED'] or retrieval_label == 0 or answer_start==-1:
+                if answer_text in ['CANNOTANSWER', 'NOTRECOVERED'] or retrieval_label == 0 or answer_start == -1:
                     is_impossible = True
 
                 if not is_impossible:
@@ -743,14 +755,11 @@ def gen_reader_features(qids, question_texts, answer_texts, answer_starts, passa
                     #
                     # Note that this means for training mode, every example is NOT
                     # guaranteed to be preserved.
-                    actual_text = " ".join(
-                        doc_tokens[start_position:(end_position + 1)])
-                    cleaned_answer_text = " ".join(
-                        whitespace_tokenize(orig_answer_text))
+                    actual_text = " ".join(doc_tokens[start_position:(end_position + 1)])
+                    cleaned_answer_text = " ".join(whitespace_tokenize(orig_answer_text))
                     if actual_text.find(cleaned_answer_text) == -1:
-                        logger.warning("Could not find answer: '%s' vs. '%s'",
-                                       actual_text, cleaned_answer_text)
-                        print('paragraph_text',paragraph_text)
+                        logger.warning(f"Could not find answer: '{actual_text}' vs. '{cleaned_answer_text}'")
+                        print('paragraph_text', paragraph_text)
                         print(paragraph_text.find(str(answer_text)))
 
                 else:
@@ -767,10 +776,10 @@ def gen_reader_features(qids, question_texts, answer_texts, answer_starts, passa
                 start_position=start_position,
                 end_position=end_position,
                 is_impossible=is_impossible,
-                retrieval_label=retrieval_label)
+                retrieval_label=retrieval_label
+            )
 
-            feature = convert_example_to_feature(
-                example, reader_tokenizer, is_training=is_training)
+            feature = convert_example_to_feature(example, reader_tokenizer, is_training=is_training)
 
             # when evaluating, we save all examples and features
             # so that we can recover answer texts
@@ -780,45 +789,50 @@ def gen_reader_features(qids, question_texts, answer_texts, answer_starts, passa
 
             if is_training:
                 if retrieval_label:
-                    per_query_feature = {'input_ids': np.asarray(feature.input_ids),
-                                     'segment_ids': np.asarray(feature.segment_ids),
-                                     'input_mask': np.asarray(feature.input_mask),
-                                     # 'cls_index': feature.cls_index,
-                                     # 'p_mask': feature.p_mask,
-                                     # the true passge might be at any position
-                                     'start_position': feature.start_position + i * max_seq_length,
-                                     'end_position': feature.end_position + i * max_seq_length,
-                                     'retrieval_label': feature.retrieval_label}
+                    per_query_feature = {
+                        'input_ids': np.asarray(feature.input_ids),
+                        'segment_ids': np.asarray(feature.segment_ids),
+                        'input_mask': np.asarray(feature.input_mask),
+                        # 'cls_index': feature.cls_index,
+                        # 'p_mask': feature.p_mask,
+                        # the true passge might be at any position
+                        'start_position': feature.start_position + i * max_seq_length,
+                        'end_position': feature.end_position + i * max_seq_length,
+                        'retrieval_label': feature.retrieval_label
+                    }
 
                 else:
-                    per_query_feature = {'input_ids': np.asarray(feature.input_ids),
-                                     'segment_ids': np.asarray(feature.segment_ids),
-                                     'input_mask': np.asarray(feature.input_mask),
-                                     # 'cls_index': feature.cls_index,
-                                     # 'p_mask': feature.p_mask,
-                                     'start_position': -1,
-                                     'end_position': -1,
-                                     'retrieval_label': feature.retrieval_label}
+                    per_query_feature = {
+                        'input_ids': np.asarray(feature.input_ids),
+                        'segment_ids': np.asarray(feature.segment_ids),
+                        'input_mask': np.asarray(feature.input_mask),
+                        # 'cls_index': feature.cls_index,
+                        # 'p_mask': feature.p_mask,
+                        'start_position': -1,
+                        'end_position': -1,
+                        'retrieval_label': feature.retrieval_label
+                    }
             else:
-                per_query_feature = {'input_ids': np.asarray(feature.input_ids),
-                                 'segment_ids': np.asarray(feature.segment_ids),
-                                 'input_mask': np.asarray(feature.input_mask),
-                                 # 'cls_index': feature.cls_index,
-                                 # 'p_mask': feature.p_mask,
-                                 'example_id': feature.example_id}
+                per_query_feature = {
+                    'input_ids': np.asarray(feature.input_ids),
+                    'segment_ids': np.asarray(feature.segment_ids),
+                    'input_mask': np.asarray(feature.input_mask),
+                    # 'cls_index': feature.cls_index,
+                    # 'p_mask': feature.p_mask,
+                    'example_id': feature.example_id
+                }
             if (itemid_modalities[item_id_to_idx[pid]] == 'image'):
-                per_query_feature['image_input']=image_transform(image_path)
+                per_query_feature['image_input'] = image_transform(image_path)
             else:
-                per_query_feature['image_input']=np.zeros([3,512,512])
+                per_query_feature['image_input'] = np.zeros([3,512,512])
 
-
-            if(itemid_modalities[item_id_to_idx[pid]] == 'text'):
-                item_modality_type=0
-            elif(itemid_modalities[item_id_to_idx[pid]] == 'table'):
-                item_modality_type=1
+            if itemid_modalities[item_id_to_idx[pid]] == 'text':
+                item_modality_type = 0
+            elif itemid_modalities[item_id_to_idx[pid]] == 'table':
+                item_modality_type = 1
             else:
-                item_modality_type=2
-            per_query_feature['item_modality_type']=item_modality_type
+                item_modality_type = 2
+            per_query_feature['item_modality_type'] = item_modality_type
 
             per_query_features.append(per_query_feature)
 
@@ -852,8 +866,9 @@ def gen_reader_features(qids, question_texts, answer_texts, answer_starts, passa
         return batch, all_examples, all_features
 
 
-def _improve_answer_span(doc_tokens, input_start, input_end, tokenizer,
-                         orig_answer_text):
+def _improve_answer_span(
+        doc_tokens, input_start, input_end, tokenizer, orig_answer_text
+):
     """Returns tokenized answer spans that better match the annotated answer."""
 
     # The SQuAD annotations are character based. We first project them to
@@ -926,17 +941,21 @@ def _check_is_max_context(doc_spans, cur_span_index, position):
     return cur_span_index == best_span_index
 
 # the retrieval_logits is for reranking
-RawResult = collections.namedtuple("RawResult",
-                                   ["unique_id", "start_logits", "end_logits", 'retrieval_logits', 'retriever_prob', 'modality_logits'], 
-                                   defaults=(None,)*4+ (1.0,))
+RawResult = collections.namedtuple(
+    "RawResult",
+    ["unique_id", "start_logits", "end_logits", 'retrieval_logits', 'retriever_prob', 'modality_logits'], 
+    defaults=(None,) * 4 + (1.0, )
+)
 
-def write_predictions(all_examples, all_features, all_results, n_best_size,
-                      max_answer_length, do_lower_case, output_prediction_file,
-                      output_nbest_file, output_null_log_odds_file, verbose_logging,
-                      version_2_with_negative, null_score_diff_threshold):
+def write_predictions(
+        all_examples, all_features, all_results, n_best_size,
+        max_answer_length, do_lower_case, output_prediction_file,
+        output_nbest_file, output_null_log_odds_file, verbose_logging,
+        version_2_with_negative, null_score_diff_threshold
+):
     """Write final predictions to the json file and log-odds of null if needed."""
-    logger.info("Writing predictions to: %s" % (output_prediction_file))
-    logger.info("Writing nbest to: %s" % (output_nbest_file))
+    logger.info(f"Writing predictions to: {output_prediction_file}")
+    logger.info(f"Writing nbest to: {output_nbest_file}")
 
     # example_id_to_features = collections.defaultdict(list)
     # for feature in all_features:
@@ -946,9 +965,10 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
     for result in all_results:
         unique_id_to_result[result.unique_id] = result
 
-    _PrelimPrediction = collections.namedtuple(  # pylint: disable=invalid-name
+    _PrelimPrediction = collections.namedtuple(
         "PrelimPrediction",
-        ["feature_index", "start_index", "end_index", "start_logit", "end_logit", 'retrieval_logit', 'retriever_prob'])
+        ["feature_index", "start_index", "end_index", "start_logit", "end_logit", 'retrieval_logit', 'retriever_prob']
+    ) # pylint: disable=invalid-name
 
     all_predictions = collections.OrderedDict()
     all_nbest_json = collections.OrderedDict()
@@ -1007,7 +1027,9 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
                         start_logit=result.start_logits[start_index],
                         end_logit=result.end_logits[end_index],
                         retrieval_logit=result.retrieval_logits[-1],
-                        retriever_prob=result.retriever_prob))
+                        retriever_prob=result.retriever_prob
+                    )
+                )
         if version_2_with_negative:
             prelim_predictions.append(
                 _PrelimPrediction(
@@ -1017,14 +1039,19 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
                     start_logit=null_start_logit,
                     end_logit=null_end_logit, 
                     retrieval_logit=null_retrieval_logit, 
-                    retriever_prob=null_retriever_prob))
+                    retriever_prob=null_retriever_prob
+                )
+            )
         prelim_predictions = sorted(
             prelim_predictions,
             key=lambda x: (x.start_logit + x.end_logit),
-            reverse=True)
+            reverse=True
+        )
 
-        _NbestPrediction = collections.namedtuple(  # pylint: disable=invalid-name
-            "NbestPrediction", ["text", "start_logit", "end_logit", 'retrieval_logit', 'retriever_prob'])
+        _NbestPrediction = collections.namedtuple(
+            "NbestPrediction",
+            ["text", "start_logit", "end_logit", 'retrieval_logit', 'retriever_prob']
+        ) # pylint: disable=invalid-name
 
         seen_predictions = {}
         nbest = []
@@ -1062,8 +1089,10 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
                     text=final_text,
                     start_logit=pred.start_logit,
                     end_logit=pred.end_logit, 
-                    retrieval_logit=pred.retrieval_logit, 
-                    retriever_prob=pred.retriever_prob))
+                    retrieval_logit=pred.retrieval_logit,
+                    retriever_prob=pred.retriever_prob
+                )
+            )
         # if we didn't include the empty option in the n-best, include it
         if version_2_with_negative:
             if "CANNOTANSWER" not in seen_predictions:
@@ -1073,20 +1102,30 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
                         start_logit=null_start_logit,
                         end_logit=null_end_logit, 
                         retrieval_logit=null_retrieval_logit,
-                        retriever_prob=null_retriever_prob))
+                        retriever_prob=null_retriever_prob
+                    )
+                )
                 
             # In very rare edge cases we could only have single null prediction.
             # So we just create a nonce prediction in this case to avoid failure.
             if len(nbest)==1:
-                nbest.insert(0,
-                    _NbestPrediction(text="empty", start_logit=0.0, end_logit=0.0, 
-                                     retrieval_logit=0.0, retriever_prob=0.0))
+                nbest.insert(
+                    0,
+                    _NbestPrediction(
+                        text="empty", start_logit=0.0, end_logit=0.0, 
+                        retrieval_logit=0.0, retriever_prob=0.0
+                    )
+                )
 
         # In very rare edge cases we could have no valid predictions. So we
         # just create a nonce prediction in this case to avoid failure.
         if not nbest:
             nbest.append(
-                _NbestPrediction(text="empty", start_logit=0.0, end_logit=0.0, retrieval_logit=0.0, retriever_prob=0.0))
+                _NbestPrediction(
+                    text="empty", start_logit=0.0, end_logit=0.0,
+                    retrieval_logit=0.0, retriever_prob=0.0
+                )
+            )
 
         assert len(nbest) >= 1
 
@@ -1114,32 +1153,36 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
         assert len(nbest_json) >= 1
 
         if not version_2_with_negative:
-            example_prediction = {'text': best_non_null_entry.text, 
-                                  'start_logit': best_non_null_entry.start_logit,
-                                  'end_logit': best_non_null_entry.end_logit,
-                                  'retrieval_logit': best_non_null_entry.retrieval_logit, 
-                                  'retriever_prob': best_non_null_entry.retriever_prob,
-                                  'example_id': example.example_id}
+            example_prediction = {
+                'text': best_non_null_entry.text, 
+                'start_logit': best_non_null_entry.start_logit,
+                'end_logit': best_non_null_entry.end_logit,
+                'retrieval_logit': best_non_null_entry.retrieval_logit, 
+                'retriever_prob': best_non_null_entry.retriever_prob,
+                'example_id': example.example_id
+            }
         else:
             # predict "" iff the null score - the score of best non-null > threshold
-            score_diff = (score_null - 
-                          best_non_null_entry.start_logit - 
-                          best_non_null_entry.end_logit)
+            score_diff = (score_null - best_non_null_entry.start_logit - best_non_null_entry.end_logit)
             scores_diff_json[example.example_id] = score_diff
             if score_diff > null_score_diff_threshold:
-                example_prediction = {'text': 'CANNOTANSWER',
-                                      'start_logit': null_start_logit,
-                                      'end_logit': null_end_logit,
-                                      'retrieval_logit': null_retrieval_logit, 
-                                      'retriever_prob': null_retriever_prob,
-                                      'example_id': example.example_id}
+                example_prediction = {
+                    'text': 'CANNOTANSWER',
+                    'start_logit': null_start_logit,
+                    'end_logit': null_end_logit,
+                    'retrieval_logit': null_retrieval_logit, 
+                    'retriever_prob': null_retriever_prob,
+                    'example_id': example.example_id
+                }
             else:
-                example_prediction = {'text': best_non_null_entry.text, 
-                                      'start_logit': best_non_null_entry.start_logit,
-                                      'end_logit': best_non_null_entry.end_logit,
-                                      'retrieval_logit': best_non_null_entry.retrieval_logit, 
-                                      'retriever_prob': best_non_null_entry.retriever_prob,
-                                      'example_id': example.example_id}
+                example_prediction = {
+                    'text': best_non_null_entry.text, 
+                    'start_logit': best_non_null_entry.start_logit,
+                    'end_logit': best_non_null_entry.end_logit,
+                    'retrieval_logit': best_non_null_entry.retrieval_logit, 
+                    'retriever_prob': best_non_null_entry.retriever_prob,
+                    'example_id': example.example_id
+                }
                     
         if example.qas_id in all_predictions:            
             all_predictions[example.qas_id].append(example_prediction)
@@ -1159,10 +1202,12 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
 
     return all_predictions
 
-def write_final_predictions(all_predictions, final_prediction_file, 
-                            use_rerank_prob=True, use_retriever_prob=False):
+def write_final_predictions(
+        all_predictions, final_prediction_file,
+        use_rerank_prob=True, use_retriever_prob=False
+):
     """convert instance level predictions to quac predictions"""
-    logger.info("Writing final predictions to: %s" % (final_prediction_file))
+    logger.info(f"Writing final predictions to: {final_prediction_file}")
     
     turn_level_preds = {}
     for qid, preds in all_predictions.items():
@@ -1205,30 +1250,34 @@ def write_final_predictions(all_predictions, final_prediction_file,
     return dialog_level_preds.values()
 
 # For XLNet (and XLM which uses the same head)
-RawResultExtended = collections.namedtuple("RawResultExtended",
-    ["unique_id", "start_top_log_probs", "start_top_index",
-     "end_top_log_probs", "end_top_index", "cls_logits"])
+RawResultExtended = collections.namedtuple(
+    "RawResultExtended",
+    ["unique_id", "start_top_log_probs", "start_top_index", "end_top_log_probs", "end_top_index", "cls_logits"]
+)
 
 
-def write_predictions_extended(all_examples, all_features, all_results, n_best_size,
-                                max_answer_length, output_prediction_file,
-                                output_nbest_file,
-                                output_null_log_odds_file, orig_data_file,
-                                start_n_top, end_n_top, version_2_with_negative,
-                                tokenizer, verbose_logging):
+def write_predictions_extended(
+        all_examples, all_features, all_results, n_best_size,
+        max_answer_length, output_prediction_file,
+        output_nbest_file,
+        output_null_log_odds_file, orig_data_file,
+        start_n_top, end_n_top, version_2_with_negative,
+        tokenizer, verbose_logging
+):
     """ XLNet write prediction logic (more complex than Bert's).
         Write final predictions to the json file and log-odds of null if needed.
         Requires utils_squad_evaluate.py
     """
-    _PrelimPrediction = collections.namedtuple(  # pylint: disable=invalid-name
+    _PrelimPrediction = collections.namedtuple(
         "PrelimPrediction",
-        ["feature_index", "start_index", "end_index",
-        "start_log_prob", "end_log_prob"])
+        ["feature_index", "start_index", "end_index", "start_log_prob", "end_log_prob"]
+    ) # pylint: disable=invalid-name
 
-    _NbestPrediction = collections.namedtuple(  # pylint: disable=invalid-name
-        "NbestPrediction", ["text", "start_log_prob", "end_log_prob"])
+    _NbestPrediction = collections.namedtuple(
+        "NbestPrediction", ["text", "start_log_prob", "end_log_prob"]
+    ) # pylint: disable=invalid-name
 
-    logger.info("Writing predictions to: %s", output_prediction_file)
+    logger.info(f"Writing predictions to: {output_prediction_file}")
     # logger.info("Writing nbest to: %s" % (output_nbest_file))
 
     example_id_to_features = collections.defaultdict(list)
@@ -1290,12 +1339,15 @@ def write_predictions_extended(all_examples, all_features, all_results, n_best_s
                             start_index=start_index,
                             end_index=end_index,
                             start_log_prob=start_log_prob,
-                            end_log_prob=end_log_prob))
+                            end_log_prob=end_log_prob
+                        )
+                    )
 
         prelim_predictions = sorted(
             prelim_predictions,
             key=lambda x: (x.start_log_prob + x.end_log_prob),
-            reverse=True)
+            reverse=True
+        )
 
         seen_predictions = {}
         nbest = []
@@ -1326,8 +1378,7 @@ def write_predictions_extended(all_examples, all_features, all_results, n_best_s
             tok_text = " ".join(tok_text.split())
             orig_text = " ".join(orig_tokens)
 
-            final_text = get_final_text(tok_text, orig_text, tokenizer.do_lower_case,
-                                        verbose_logging)
+            final_text = get_final_text(tok_text, orig_text, tokenizer.do_lower_case, verbose_logging)
 
             if final_text in seen_predictions:
                 continue
@@ -1338,14 +1389,14 @@ def write_predictions_extended(all_examples, all_features, all_results, n_best_s
                 _NbestPrediction(
                     text=final_text,
                     start_log_prob=pred.start_log_prob,
-                    end_log_prob=pred.end_log_prob))
+                    end_log_prob=pred.end_log_prob
+                )
+            )
 
         # In very rare edge cases we could have no valid predictions. So we
         # just create a nonce prediction in this case to avoid failure.
         if not nbest:
-            nbest.append(
-                _NbestPrediction(text="", start_log_prob=-1e6,
-                end_log_prob=-1e6))
+            nbest.append(_NbestPrediction(text="", start_log_prob=-1e6, end_log_prob=-1e6))
 
         total_scores = []
         best_non_null_entry = None
@@ -1450,8 +1501,7 @@ def get_final_text(pred_text, orig_text, do_lower_case, verbose_logging=False):
     start_position = tok_text.find(pred_text)
     if start_position == -1:
         if verbose_logging:
-            logger.info(
-                "Unable to find text: '%s' in '%s'" % (pred_text, orig_text))
+            logger.info("Unable to find text: '%s' in '%s'" % (pred_text, orig_text))
         return orig_text
     end_position = start_position + len(pred_text) - 1
 
@@ -1460,8 +1510,7 @@ def get_final_text(pred_text, orig_text, do_lower_case, verbose_logging=False):
 
     if len(orig_ns_text) != len(tok_ns_text):
         if verbose_logging:
-            logger.info("Length not equal after stripping spaces: '%s' vs '%s'",
-                        orig_ns_text, tok_ns_text)
+            logger.info("Length not equal after stripping spaces: '%s' vs '%s'", orig_ns_text, tok_ns_text)
         return orig_text
 
     # We then project the characters in `pred_text` back to `orig_text` using
@@ -1530,9 +1579,11 @@ def _compute_softmax(scores):
         probs.append(score / total_sum)
     return probs
 
-def get_retrieval_metrics(evaluator, all_predictions, eval_retriever_probs=False,retriever_run_dict=None): 
-    return_dict={}
-    if retriever_run_dict==None:
+def get_retrieval_metrics(evaluator, all_predictions, eval_retriever_probs=False, retriever_run_dict=None):
+    
+    return_dict = {}
+
+    if retriever_run_dict == None:
         retriever_run = {}
         for qid, preds in all_predictions.items():
             retriever_run[qid] = {}
@@ -1540,50 +1591,35 @@ def get_retrieval_metrics(evaluator, all_predictions, eval_retriever_probs=False
                 pid = pred['example_id'].split('*')[1]
                 retriever_run[qid][pid] = pred['retriever_prob']
 
-        retriever_metrics = evaluator.evaluate(retriever_run_dict)
+        retriever_metrics = evaluator.evaluate(retriever_run)
 
         retriever_ndcg_list = [v['ndcg'] for v in retriever_metrics.values()]
-        retriever_recall_list = [v['set_recall'] for v in retriever_metrics.values()]    
-        return_dict.update({'retriever_ndcg': np.average(retriever_ndcg_list), 
-                            'retriever_recall': np.average(retriever_recall_list)})
+        retriever_recall_list = [v['set_recall'] for v in retriever_metrics.values()]
+        return_dict.update(
+            {
+                'retriever_ndcg': np.average(retriever_ndcg_list),
+                'retriever_recall': np.average(retriever_recall_list)
+            }
+        )
         print("=======================")
-        print('ndcg(@top_k_for_reader)', np.average(retriever_ndcg_list))
-        print('set_recall(@top_k_for_reader)', np.average(retriever_recall_list))
+        print(f'ndcg(@top_k_for_reader): {np.average(retriever_ndcg_list)}')
+        print(f'set_recall(@top_k_for_reader): {np.average(retriever_recall_list)}')
         print("=======================")
 
     else:
-
         retriever_metrics = evaluator.evaluate(retriever_run_dict)
 
         retriever_ndcg_list = [v['ndcg'] for v in retriever_metrics.values()]
         retriever_recall_list = [v['set_recall'] for v in retriever_metrics.values()]    
-        return_dict.update({'retriever_ndcg': np.average(retriever_ndcg_list), 
-                            'retriever_recall': np.average(retriever_recall_list)})
+        return_dict.update(
+            {
+                'retriever_ndcg': np.average(retriever_ndcg_list), 
+                'retriever_recall': np.average(retriever_recall_list)
+            }
+        )
         print("=======================")
-        print('ndcg(@top_k_for_retriever)', np.average(retriever_ndcg_list))
-        print('set_recall(@top_k_for_retriever)', np.average(retriever_recall_list))
+        print(f'ndcg(@top_k_for_retriever): {np.average(retriever_ndcg_list)}')
+        print(f'set_recall(@top_k_for_retriever): {np.average(retriever_recall_list)}')
         print("=======================")
+    
     return return_dict
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    

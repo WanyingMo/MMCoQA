@@ -1,4 +1,4 @@
-python train_pipeline.py \
+python main.py \
     --do_train False \
     --do_eval False \
     --do_test True \

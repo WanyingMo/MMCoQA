@@ -3,9 +3,11 @@ import logging
 import collections
 import torch
 from transformers import BertModel, BertPreTrainedModel, AlbertModel
-from transformers.modeling_bert import (BertEncoder, BertOutput, BertAttention, 
-                                        BertIntermediate, BertLayer, BertEmbeddings,
-                                        BertPooler, BertLayerNorm)
+from transformers.modeling_bert import (
+    BertEncoder, BertOutput, BertAttention, 
+    BertIntermediate, BertLayer, BertEmbeddings,
+    BertPooler, BertLayerNorm
+)
 from transformers.modeling_albert import AlbertPreTrainedModel
 
 from torch import nn
@@ -14,12 +16,12 @@ import torch.nn.functional as F
 from copy import deepcopy
 
 from transformers.configuration_utils import PretrainedConfig
-from transformers.file_utils import (TF2_WEIGHTS_NAME, TF_WEIGHTS_NAME, WEIGHTS_NAME, 
-                         cached_path)
+from transformers.file_utils import (
+    TF2_WEIGHTS_NAME, TF_WEIGHTS_NAME, WEIGHTS_NAME, cached_path
+)
 import torchvision
 logger = logging.getLogger(__name__)
 
-    
     
 class BertForOrconvqaGlobal(BertPreTrainedModel):
     r"""
@@ -63,15 +65,12 @@ class BertForOrconvqaGlobal(BertPreTrainedModel):
         self.image_encoder=torchvision.models.resnet50(pretrained=True)
         self.image_encoder.fc = nn.Linear(self.image_encoder.fc.in_features, config.hidden_size)
 
-        
         self.qa_loss_factor = config.qa_loss_factor
         self.retrieval_loss_factor = config.retrieval_loss_factor
 
-
-
         self.query_encoder = BertModel(config)
         self.query_proj = nn.Linear(config.hidden_size, config.proj_size)
-        self.modality_detection=nn.Linear(config.proj_size, 3)
+        self.modality_detection = nn.Linear(config.proj_size, 3)
 
         self.init_weights()
 
@@ -86,30 +85,29 @@ class BertForOrconvqaGlobal(BertPreTrainedModel):
         token_type_ids = token_type_ids.view(-1, seq_len)      
 
 
-        modality_labels=modality_labels.view(-1,1).expand(-1,num_blocks).view(-1)
+        modality_labels = modality_labels.view(-1, 1).expand(-1, num_blocks).view(-1)
 
+        item_modality_type = item_modality_type.view(-1, 1)
 
-        item_modality_type=item_modality_type.view(-1,1)
+        image_inputs = image_input.view(-1, 3, 512, 512)         
 
-
-        image_inputs=image_input.view(-1,3,512,512)         
-
-        image_rep=self.image_encoder(image_inputs.type(torch.FloatTensor).cuda()) #(batch_size * num_blocks, hidden_size)
+        image_rep = self.image_encoder(image_inputs.type(torch.FloatTensor).cuda()) #(batch_size * num_blocks, hidden_size)
 #        image_rep=self.image_encoder(image_inputs) #(batch_size * num_blocks, hidden_size)
-        image_rep=image_rep.view(-1,1,image_rep.size()[1])
+        image_rep = image_rep.view(-1,1,image_rep.size()[1])
 
-        outputs = self.bert(input_ids,
-                            attention_mask=attention_mask,
-                            token_type_ids=token_type_ids,
-                            position_ids=position_ids,
-                            head_mask=head_mask,
-                            inputs_embeds=inputs_embeds)
+        outputs = self.bert(
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds
+        )
 
         sequence_output = outputs[0]
         pooled_output = outputs[1]
 
-        #
-        sequence_output=sequence_output+image_rep
+        sequence_output = sequence_output + image_rep
 
         qa_logits = self.qa_outputs(sequence_output)
         start_logits, end_logits = qa_logits.split(1, dim=-1)
@@ -122,21 +120,20 @@ class BertForOrconvqaGlobal(BertPreTrainedModel):
 
 
 ###modality detection
-        query_outputs = self.query_encoder(query_input_ids,
-                            attention_mask=query_attention_mask,
-                            token_type_ids=query_token_type_ids)
+        query_outputs = self.query_encoder(
+            query_input_ids,
+            attention_mask=query_attention_mask,
+            token_type_ids=query_token_type_ids
+        )
         
         query_pooled_output = query_outputs[1]
         query_pooled_output = self.dropout(query_pooled_output)
         query_reps = self.query_proj(query_pooled_output)
-        query_reps=query_reps.view(-1,1,query_reps.shape[1]).expand(-1,num_blocks,query_reps.shape[1]).view(-1,query_reps.shape[1])
+        query_reps = query_reps.view(-1, 1, query_reps.shape[1]).expand(-1, num_blocks, query_reps.shape[1]).view(-1, query_reps.shape[1])
 
         modality_logits = self.modality_detection(query_reps) # (batch_size * num_blocks, 3)
-
-
-
         
-        outputs = (start_logits, end_logits, retrieval_logits+torch.gather(modality_logits,1,item_modality_type),) + outputs[2:]
+        outputs = (start_logits, end_logits, retrieval_logits + torch.gather(modality_logits, 1, item_modality_type),) + outputs[2:]
         if start_positions is not None and end_positions is not None and retrieval_label is not None:
             start_logits = start_logits.view(batch_size, -1)
             end_logits = end_logits.view(batch_size, -1)
@@ -148,7 +145,6 @@ class BertForOrconvqaGlobal(BertPreTrainedModel):
             end_positions = end_positions.squeeze(-1).max(dim=1).values
             
             retrieval_label = retrieval_label.squeeze(-1).argmax(dim=1)
-
             
             # If we are on multi-GPU, split add a dimension
             if len(start_positions.size()) > 1:
@@ -169,10 +165,10 @@ class BertForOrconvqaGlobal(BertPreTrainedModel):
 
             retrieval_loss = retrieval_loss_fct(retrieval_logits, retrieval_label)
 
-            modality_loss_fct =CrossEntropyLoss()
+            modality_loss_fct = CrossEntropyLoss()
             modality_loss = modality_loss_fct(modality_logits, modality_labels)
             
-            total_loss = self.qa_loss_factor * qa_loss + self.retrieval_loss_factor * retrieval_loss +self.retrieval_loss_factor * modality_loss
+            total_loss = self.qa_loss_factor * qa_loss + self.retrieval_loss_factor * retrieval_loss + self.retrieval_loss_factor * modality_loss
                                
             outputs = (total_loss, qa_loss, retrieval_loss,) + outputs
 
@@ -203,9 +199,11 @@ class BertForRetriever(BertPreTrainedModel):
         outputs = ()
         
         if query_input_ids is not None:
-            query_outputs = self.query_encoder(query_input_ids,
-                                attention_mask=query_attention_mask,
-                                token_type_ids=query_token_type_ids)
+            query_outputs = self.query_encoder(
+                query_input_ids,
+                attention_mask=query_attention_mask,
+                token_type_ids=query_token_type_ids
+            )
             
             query_pooled_output = query_outputs[1]
             query_pooled_output = self.dropout(query_pooled_output)
@@ -221,9 +219,11 @@ class BertForRetriever(BertPreTrainedModel):
                 passage_attention_mask = passage_attention_mask.view(-1, seq_len)
                 passage_token_type_ids = passage_token_type_ids.view(-1, seq_len) 
 
-            passage_outputs = self.passage_encoder(passage_input_ids,
-                                attention_mask=passage_attention_mask,
-                                token_type_ids=passage_token_type_ids) 
+            passage_outputs = self.passage_encoder(
+                passage_input_ids,
+                attention_mask=passage_attention_mask,
+                token_type_ids=passage_token_type_ids
+            ) 
 
             passage_pooled_output = passage_outputs[1] 
             passage_pooled_output = self.dropout(passage_pooled_output)
@@ -256,10 +256,11 @@ class BertForRetriever(BertPreTrainedModel):
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
         r"""
         """
-        if pretrained_model_name_or_path is not None and (
-                "albert" in pretrained_model_name_or_path and "v2" in pretrained_model_name_or_path):
-            logger.warning("There is currently an upstream reproducibility issue with ALBERT v2 models. Please see " +
-                           "https://github.com/google-research/google-research/issues/119 for more information.")
+        if pretrained_model_name_or_path is not None and ("albert" in pretrained_model_name_or_path and "v2" in pretrained_model_name_or_path):
+            logger.warning(
+                "There is currently an upstream reproducibility issue with ALBERT v2 models. " +
+                "Please see https://github.com/google-research/google-research/issues/119 for more information."
+            )
 
         config = kwargs.pop('config', None)
         state_dict = kwargs.pop('state_dict', None)
@@ -353,8 +354,10 @@ class BertForRetriever(BertPreTrainedModel):
                     from transformers import load_tf2_checkpoint_in_pytorch_model
                     model = load_tf2_checkpoint_in_pytorch_model(model, resolved_archive_file, allow_missing_keys=True)
                 except ImportError as e:
-                    logger.error("Loading a TensorFlow model in PyTorch, requires both PyTorch and TensorFlow to be installed. Please see "
-                        "https://pytorch.org/ and https://www.tensorflow.org/install/ for installation instructions.")
+                    logger.error(
+                        "Loading a TensorFlow model in PyTorch, requires both PyTorch and TensorFlow to be installed. " +
+                        "Please see https://pytorch.org/ and https://www.tensorflow.org/install/ for installation instructions."
+                    )
                     raise e
         else:
             # Convert old format to new format if needed from a PyTorch state_dict
@@ -456,27 +459,25 @@ class AlbertForRetrieverOnlyPositivePassage(AlbertPreTrainedModel):
         
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-        self.image_encoder=torchvision.models.resnet101(pretrained=True)
+        self.image_encoder = torchvision.models.resnet101(pretrained=True)
         self.image_encoder.fc = nn.Linear(self.image_encoder.fc.in_features, config.hidden_size)
         self.image_proj = nn.Linear(config.hidden_size, config.proj_size)
-
-
         
         self.init_weights()
 
-
-
-
-
-    def forward(self, query_input_ids=None, query_attention_mask=None, query_token_type_ids=None, 
-                passage_input_ids=None, passage_attention_mask=None, passage_token_type_ids=None, 
-                retrieval_label=None,question_type=None,image_input=None,query_rep=None, passage_rep=None, modality_labels=None):
+    def forward(
+            self, query_input_ids=None, query_attention_mask=None, query_token_type_ids=None, 
+            passage_input_ids=None, passage_attention_mask=None, passage_token_type_ids=None, 
+            retrieval_label=None, question_type=None, image_input=None,query_rep=None, passage_rep=None, modality_labels=None
+    ):
         outputs = ()
         
         if query_input_ids is not None:
-            query_outputs = self.query_encoder(query_input_ids,
-                                attention_mask=query_attention_mask,
-                                token_type_ids=query_token_type_ids)
+            query_outputs = self.query_encoder(
+                query_input_ids,
+                attention_mask=query_attention_mask,
+                token_type_ids=query_token_type_ids
+            )
             
             query_pooled_output = query_outputs[1]
             query_pooled_output = self.dropout(query_pooled_output)
@@ -485,9 +486,11 @@ class AlbertForRetrieverOnlyPositivePassage(AlbertPreTrainedModel):
             outputs = (query_rep, ) + outputs
         
         if passage_input_ids is not None:
-            passage_outputs = self.passage_encoder(passage_input_ids,
-                                attention_mask=passage_attention_mask,
-                                token_type_ids=passage_token_type_ids) 
+            passage_outputs = self.passage_encoder(
+                passage_input_ids,
+                attention_mask=passage_attention_mask,
+                token_type_ids=passage_token_type_ids
+            ) 
 
             passage_pooled_output = passage_outputs[1] 
             passage_pooled_output = self.dropout(passage_pooled_output)
@@ -496,17 +499,13 @@ class AlbertForRetrieverOnlyPositivePassage(AlbertPreTrainedModel):
 
             #####################encode an image
             image_outputs = self.image_encoder(image_input)
-            image_rep= self.image_proj(image_outputs) # batch_size, proj_size
+            image_rep = self.image_proj(image_outputs) # batch_size, proj_size
 
             ##############obtain the corresponding embedding     modality_position=question_type:[0,1,0,1]*batchsize+[0,1,2,3]=[0,4,2,6]
 
-            modality_position=question_type*passage_rep.size(0)+torch.arange(passage_rep.size(0), device=passage_rep.device, dtype=torch.long)
+            modality_position = question_type * passage_rep.size(0) + torch.arange(passage_rep.size(0), device=passage_rep.device, dtype=torch.long)
 
-
-
-
-
-            passage_rep=  torch.cat((passage_rep, image_rep), 0)[modality_position]
+            passage_rep = torch.cat((passage_rep, image_rep), 0)[modality_position]
 
             outputs = (passage_rep, ) + outputs
                        
@@ -525,9 +524,11 @@ class AlbertForRetrieverOnlyPositivePassage(AlbertPreTrainedModel):
         if query_input_ids is not None and passage_rep is not None and retrieval_label is not None and len(passage_rep.size()) == 3:
             # this is during fine tuning
             # passage_rep: batch_size, num_blocks, proj_size      
-            query_outputs = self.query_encoder(query_input_ids,
-                                attention_mask=query_attention_mask,
-                                token_type_ids=query_token_type_ids)
+            query_outputs = self.query_encoder(
+                query_input_ids,
+                attention_mask=query_attention_mask,
+                token_type_ids=query_token_type_ids
+            )
             
             query_pooled_output = query_outputs[1]
             query_pooled_output = self.dropout(query_pooled_output)
@@ -553,15 +554,15 @@ class AlbertForRetrieverOnlyPositivePassage(AlbertPreTrainedModel):
         if query_input_ids is not None and modality_labels is not None:
             # this is during fine tuning
             # passage_rep: batch_size, num_blocks, proj_size      
-            query_outputs = self.query_encoder(query_input_ids,
-                                attention_mask=query_attention_mask,
-                                token_type_ids=query_token_type_ids)
+            query_outputs = self.query_encoder(
+                query_input_ids,
+                attention_mask=query_attention_mask,
+                token_type_ids=query_token_type_ids
+            )
             
             query_pooled_output = query_outputs[1]
             query_pooled_output = self.dropout(query_pooled_output)
             query_rep = self.query_proj(query_pooled_output) # batch_size, proj_size  
-            
-            
             
             outputs = (retrieval_loss, ) + outputs
         return outputs
@@ -587,12 +588,7 @@ class BertForRetrieverOnlyPositivePassage(BertForRetriever):
         self.image_encoder.fc = nn.Linear(self.image_encoder.fc.in_features, config.hidden_size)
         self.image_proj = nn.Linear(config.hidden_size, config.proj_size)
 
-
-        
         self.init_weights()
-
-
-
 
 
     def forward(self, query_input_ids=None, query_attention_mask=None, query_token_type_ids=None, 
@@ -601,9 +597,11 @@ class BertForRetrieverOnlyPositivePassage(BertForRetriever):
         outputs = ()
         
         if query_input_ids is not None:
-            query_outputs = self.query_encoder(query_input_ids,
-                                attention_mask=query_attention_mask,
-                                token_type_ids=query_token_type_ids)
+            query_outputs = self.query_encoder(
+                query_input_ids,
+                attention_mask=query_attention_mask,
+                token_type_ids=query_token_type_ids
+            )
             
             query_pooled_output = query_outputs[1]
             query_pooled_output = self.dropout(query_pooled_output)
@@ -612,9 +610,11 @@ class BertForRetrieverOnlyPositivePassage(BertForRetriever):
             outputs = (query_rep, ) + outputs
         
         if passage_input_ids is not None:
-            passage_outputs = self.passage_encoder(passage_input_ids,
-                                attention_mask=passage_attention_mask,
-                                token_type_ids=passage_token_type_ids) 
+            passage_outputs = self.passage_encoder(
+                passage_input_ids,
+                attention_mask=passage_attention_mask,
+                token_type_ids=passage_token_type_ids
+            ) 
 
             passage_pooled_output = passage_outputs[1] 
             passage_pooled_output = self.dropout(passage_pooled_output)
@@ -629,11 +629,7 @@ class BertForRetrieverOnlyPositivePassage(BertForRetriever):
 
             modality_position=question_type*passage_rep.size(0)+torch.arange(passage_rep.size(0), device=passage_rep.device, dtype=torch.long)
 
-
-
-
-
-            passage_rep=  torch.cat((passage_rep, image_rep), 0)[modality_position]
+            passage_rep = torch.cat((passage_rep, image_rep), 0)[modality_position]
 
             outputs = (passage_rep, ) + outputs
                        
@@ -652,9 +648,11 @@ class BertForRetrieverOnlyPositivePassage(BertForRetriever):
         if query_input_ids is not None and passage_rep is not None and retrieval_label is not None and len(passage_rep.size()) == 3:
             # this is during fine tuning
             # passage_rep: batch_size, num_blocks, proj_size      
-            query_outputs = self.query_encoder(query_input_ids,
-                                attention_mask=query_attention_mask,
-                                token_type_ids=query_token_type_ids)
+            query_outputs = self.query_encoder(
+                query_input_ids,
+                attention_mask=query_attention_mask,
+                token_type_ids=query_token_type_ids
+            )
             
             query_pooled_output = query_outputs[1]
             query_pooled_output = self.dropout(query_pooled_output)
@@ -688,8 +686,6 @@ class BertForRetrieverOnlyPositivePassage(BertForRetriever):
             query_pooled_output = self.dropout(query_pooled_output)
             query_rep = self.query_proj(query_pooled_output) # batch_size, proj_size  
             
-            
-            
             outputs = (retrieval_loss, ) + outputs
         return outputs
 
@@ -699,5 +695,3 @@ class Pipeline(nn.Module):
         
         self.reader = None
         self.retriever = None
-
-
