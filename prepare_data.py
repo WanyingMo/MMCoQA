@@ -7,7 +7,15 @@ import scipy
 from tqdm import tqdm
 import numpy as np
 
-def prepare_dataset(args : dict):
+def prepare_dataset(args : dict) -> Tuple[list, dict, dict, dict, dict, np.array, np.array, faiss.Index, dict, dict, list, list, list, dict, scipy.sparse.csr_matrix]:
+    """prepare dataset
+
+    Args:
+        args (dict): args
+
+    Returns:
+        Tuple[list, dict, dict, dict, dict, np.array, np.array, faiss.Index, dict, dict, list, list, list, dict, scipy.sparse.csr_matrix]: itemid_modalities, passages_dict, tables_dict, images_dict, images_titles, item_ids, item_reps, gpu_index, qrels, item_id_to_idx, qrels_data, qrels_row_idx, qrels_col_idx, qid_to_idx, qrels_sparse_matrix
+    """
     itemid_modalities = []
     
     passages_dict = prepare_passages(args.passages_file, itemid_modalities)
@@ -40,8 +48,6 @@ def prepare_dataset(args : dict):
     qrels_sparse_matrix = scipy.sparse.csr_matrix((qrels_data, (qrels_row_idx, qrels_col_idx)))
     
     return itemid_modalities, passages_dict, tables_dict, images_dict, images_titles, item_ids, item_reps, gpu_index, qrels, item_id_to_idx, qrels_data, qrels_row_idx, qrels_col_idx, qid_to_idx, qrels_sparse_matrix
-
-
 
 def prepare_passages(passages_file_path : str, itemid_modalities : list) -> dict:
     """load passages to passages_dict
@@ -85,7 +91,6 @@ def prepare_tables(tables_file_path : str, itemid_modalities : list) -> dict:
             itemid_modalities.append('table')
     return tables_dict
 
-
 def prepare_images(images_file_path : str, images_path : str, itemid_modalities : list) -> dict:
     """load images to images_dict
 
@@ -108,6 +113,15 @@ def prepare_images(images_file_path : str, images_path : str, itemid_modalities 
     return images_dict
 
 def prepare_image_titles(images_file_path : str, image_answers_str : str) -> dict:
+    """load images info to images_titles
+
+    Args:
+        images_file_path (str): images .jsonl file path
+        image_answers_str (str): answer str for images
+
+    Returns:
+        dict: images_titles (key: itemid, value: image title)
+    """
     images_titles = {}
     with open(images_file_path, 'r') as f:
         lines = f.readlines()
@@ -117,6 +131,14 @@ def prepare_image_titles(images_file_path : str, image_answers_str : str) -> dic
     return images_titles
 
 def prepare_gen_passage_rep_output(gen_passage_rep_output_path : str) -> Tuple[np.array, np.array]:
+    """load gen_passage_rep_output to item_ids and item_reps
+
+    Args:
+        gen_passage_rep_output_path (str): .txt file for gen_passage_rep
+
+    Returns:
+        Tuple[np.array, np.array]: item_ids, item_reps
+    """
     item_ids, item_reps = [], []
     with open(gen_passage_rep_output_path, 'r') as f:
         for line in tqdm(f):
@@ -125,7 +147,16 @@ def prepare_gen_passage_rep_output(gen_passage_rep_output_path : str) -> Tuple[n
             item_reps.append(dic['rep'])
     return np.asarray(item_ids), np.asarray(item_reps, dtype='float32')
 
-def construct_passage_faiss_index(proj_size, item_reps):
+def construct_passage_faiss_index(proj_size : int, item_reps : dict) -> faiss.IndexFlatIP:
+    """construct faiss index for passages
+
+    Args:
+        proj_size (int): projection size
+        item_reps (dict): item representations
+
+    Returns:
+        faiss.IndexFlatIP: faiss index
+    """
     index = faiss.IndexFlatIP(proj_size)
     index.add(item_reps)
     return index
@@ -158,7 +189,16 @@ def prepare_item_id_to_idx(item_ids : list) -> dict:
         item_id_to_idx_dict[item_id] = idx
     return item_id_to_idx_dict
 
-def prepare_qrels_data(qrels : dict, item_id_to_idx : dict):
+def prepare_qrels_data(qrels : dict, item_id_to_idx : dict) -> Tuple[list, list, list, dict]:
+    """prepare qrels data for sparse matrix
+
+    Args:
+        qrels (dict): query representation
+        item_id_to_idx (dict): index mapping
+
+    Returns:
+        Tuple[list, list, list, dict]: qrels_data, qrels_row_idx, qrels_col_idx, qid_to_idx
+    """    
     qrels_data, qrels_row_idx, qrels_col_idx = [], [], []
     qid_to_idx = {}
     for i, (qid, v) in enumerate(qrels.items()):

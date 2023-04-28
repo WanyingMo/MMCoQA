@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
 from __future__ import absolute_import, division, print_function
 
 import os
@@ -18,7 +15,6 @@ import glob
 import timeit
 import json
 import faiss
-import pickle
 import numpy as np
 import torch
 from torch.utils.data import (
@@ -40,9 +36,6 @@ from retriever_utils import RetrieverDataset, GenPassageRepDataset
 from modeling import BertForRetrieverOnlyPositivePassage,AlbertForRetrieverOnlyPositivePassage
 
 
-# In[2]:
-
-
 logger = logging.getLogger(__name__)
 
 ALL_MODELS = list(BertConfig.pretrained_config_archive_map.keys())
@@ -51,9 +44,6 @@ MODEL_CLASSES = {
     'bert': (BertConfig, BertForRetrieverOnlyPositivePassage, BertTokenizer),
     'albert': (AlbertConfig, AlbertForRetrieverOnlyPositivePassage, AlbertTokenizer)
 }
-
-
-# In[3]:
 
 
 def set_seed(args):
@@ -75,9 +65,6 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
-
-
-# In[4]:
 
 
 def train(args, train_dataset, model, tokenizer):
@@ -259,10 +246,6 @@ def train(args, train_dataset, model, tokenizer):
 
     return global_step, tr_loss / global_step
 
-
-# In[5]:
-
-
 def evaluate(args, model, tokenizer, prefix=""):
     if not os.path.exists(args.output_dir) and args.local_rank in [-1, 0]:
         os.makedirs(args.output_dir)
@@ -307,10 +290,6 @@ def evaluate(args, model, tokenizer, prefix=""):
 
     print(eval_metrics)
     return eval_metrics
-
-
-# In[6]:
-
 
 def gen_passage_rep(args, model, tokenizer):
     # dataset, examples, features = load_and_cache_examples(args, tokenizer, evaluate=True, output_examples=True)
@@ -378,10 +357,6 @@ def gen_passage_rep(args, model, tokenizer):
     fout.close()
     return passage_ids, passage_reps_list
 
-
-# In[7]:
-
-
 def retrieve(args, model, tokenizer, prefix=''):
     if prefix == 'test':
         eval_file = args.test_file
@@ -444,10 +419,6 @@ def retrieve(args, model, tokenizer, prefix=''):
         all_query_reps.extend(to_list(query_reps))
 
     return all_qids, all_query_reps
-
-
-# In[8]:
-
 
 parser = argparse.ArgumentParser()
 
@@ -710,7 +681,6 @@ with open(args.passages_file,'r') as f:
 
 
 #load tables to tables_dict
-# !!!!!!!!!!!!!!!!!!!!!!!还需要精致的修改
 tables_dict = {}
 with open(args.tables_file,'r') as f:
     lines = f.readlines()
@@ -723,7 +693,6 @@ with open(args.tables_file,'r') as f:
         tables_dict[line['id']] = table_context
         idx_id_list.append((line['id'],'table'))
 #load images to images_dict
-# !!!!!!!!!!!!!!!!!!!!!!!还需要精致的修改
 images_dict = {}
 with open(args.images_file,'r') as f:
     lines = f.readlines()
@@ -778,11 +747,7 @@ if args.do_train and (args.local_rank == -1 or torch.distributed.get_rank() == 0
     model.to(args.device)
 
 
-# In[9]:
-
-
 # Evaluation - we can ask to evaluate all the checkpoints (sub-directories) in a directory
-
 results = {}
 max_recall = 0.0
 best_metrics = {}
@@ -805,7 +770,6 @@ if args.do_eval and args.local_rank in [-1, 0]:
         print(global_step, 'global_step')
 
 ########################################please delete
-
 
 
         model = model_class.from_pretrained(checkpoint, force_download=True)
@@ -839,9 +803,6 @@ if args.do_eval and args.local_rank in [-1, 0]:
     logger.info(f"best metrics: {best_metrics}")
 
 
-# In[10]:
-
-
 if args.do_test and args.local_rank in [-1, 0]:
     best_global_step = best_metrics['global_step']
     best_checkpoint = os.path.join(args.output_dir, f'checkpoint-{best_global_step}')
@@ -859,10 +820,6 @@ if args.do_test and args.local_rank in [-1, 0]:
 
     logger.info(f"Test Result: {result}")
 
-
-# In[11]:
-
-
 if args.gen_passage_rep and args.local_rank in [-1, 0]:
     tokenizer = tokenizer_class.from_pretrained(args.output_dir, do_lower_case=args.do_lower_case)
     logger.info(f"Gen passage rep with: {args.retrieve_checkpoint}")
@@ -874,34 +831,3 @@ if args.gen_passage_rep and args.local_rank in [-1, 0]:
     gen_passage_rep(args, model, tokenizer)
     
     logger.info("Gen passage rep complete")
-
-
-# # In[12]:
-
-
-# if args.retrieve and args.local_rank in [-1, 0]:
-#     tokenizer = tokenizer_class.from_pretrained(
-#         args.output_dir, do_lower_case=args.do_lower_case)
-#     logger.info("Retrieve with: %s", args.retrieve_checkpoint)
-#     model = model_class.from_pretrained(
-#         args.retrieve_checkpoint, force_download=True)
-#     model.to(args.device)
-
-#     # Evaluate
-#     qids, query_reps = retrieve(args, model, tokenizer)
-#     query_reps = np.asarray(query_reps, dtype='float32')
-       
-#     logger.info("Gen query rep complete")
-
-
-# In[13]:
-
-
-# passage_ids, passage_reps = [], []
-# with open(args.gen_passage_rep_output) as fin:
-#     for line in tqdm(fin):
-#         dic = json.loads(line.strip())
-#         passage_ids.append(dic['id'])
-#         passage_reps.append(dic['rep'])
-# passage_reps = np.asarray(passage_reps, dtype='float32')
-

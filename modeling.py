@@ -91,7 +91,7 @@ class BertForOrconvqaGlobal(BertPreTrainedModel):
 
         image_inputs = image_input.view(-1, 3, 512, 512)         
 
-        image_rep = self.image_encoder(image_inputs.type(torch.FloatTensor).cuda()) #(batch_size * num_blocks, hidden_size)
+        image_rep = self.image_encoder(image_inputs.type(torch.FloatTensor).cuda()) # (batch_size * num_blocks, hidden_size)
 #        image_rep=self.image_encoder(image_inputs) #(batch_size * num_blocks, hidden_size)
         image_rep = image_rep.view(-1,1,image_rep.size()[1])
 
@@ -119,7 +119,7 @@ class BertForOrconvqaGlobal(BertPreTrainedModel):
         retrieval_logits = self.classifier(pooled_output) # (batch_size * num_blocks, 1)
 
 
-###modality detection
+        # modality detection
         query_outputs = self.query_encoder(
             query_input_ids,
             attention_mask=query_attention_mask,
@@ -176,9 +176,6 @@ class BertForOrconvqaGlobal(BertPreTrainedModel):
     
 
 class BertForRetriever(BertPreTrainedModel):
-    r"""
-    
-    """
     def __init__(self, config):
         super(BertForRetriever, self).__init__(config)
 
@@ -254,8 +251,6 @@ class BertForRetriever(BertPreTrainedModel):
     
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
-        r"""
-        """
         if pretrained_model_name_or_path is not None and ("albert" in pretrained_model_name_or_path and "v2" in pretrained_model_name_or_path):
             logger.warning(
                 "There is currently an upstream reproducibility issue with ALBERT v2 models. " +
@@ -415,12 +410,7 @@ class BertForRetriever(BertPreTrainedModel):
             # Make sure we are able to load base models as well as derived models (with heads)
             start_prefix = ''
             model_to_load = model
-#             if not hasattr(model, cls.base_model_prefix) and any(s.startswith(cls.base_model_prefix) for s in state_dict.keys()):
-#                 start_prefix = cls.base_model_prefix + '.'
-#             if hasattr(model, cls.base_model_prefix) and not any(s.startswith(cls.base_model_prefix) for s in state_dict.keys()):
-#                 model_to_load = getattr(model, cls.base_model_prefix)
 
-#             load(model_to_load, prefix=start_prefix)
             load(model_to_load, prefix='')
             if len(missing_keys) > 0:
                 logger.info("Weights of {} not initialized from pretrained model: {}".format(
@@ -444,9 +434,6 @@ class BertForRetriever(BertPreTrainedModel):
         return model 
     
 class AlbertForRetrieverOnlyPositivePassage(AlbertPreTrainedModel):
-    r"""
-    
-    """
     def __init__(self, config):
         super(AlbertForRetrieverOnlyPositivePassage, self).__init__(config)
 
@@ -569,9 +556,6 @@ class AlbertForRetrieverOnlyPositivePassage(AlbertPreTrainedModel):
     
     
 class BertForRetrieverOnlyPositivePassage(BertForRetriever):
-    r"""
-    
-    """
     def __init__(self, config):
         super(BertForRetriever, self).__init__(config)
 
@@ -678,9 +662,11 @@ class BertForRetrieverOnlyPositivePassage(BertForRetriever):
         if query_input_ids is not None and modality_labels is not None:
             # this is during fine tuning
             # passage_rep: batch_size, num_blocks, proj_size      
-            query_outputs = self.query_encoder(query_input_ids,
-                                attention_mask=query_attention_mask,
-                                token_type_ids=query_token_type_ids)
+            query_outputs = self.query_encoder(
+                query_input_ids,
+                attention_mask=query_attention_mask,
+                token_type_ids=query_token_type_ids
+            )
             
             query_pooled_output = query_outputs[1]
             query_pooled_output = self.dropout(query_pooled_output)

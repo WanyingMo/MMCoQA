@@ -17,24 +17,20 @@
 
 from __future__ import absolute_import, division, print_function
 
+import collections
+from io import open
 import json
 import logging
-import math
-import collections
 import linecache
+import math
+
+import cv2
 import numpy as np
-from io import open
-from tqdm import tqdm
+from PIL import Image
 import torch
 from torch.utils.data import Dataset
-
-from transformers.tokenization_bert import BasicTokenizer, whitespace_tokenize
-
-from PIL import Image
-import cv2
-import torch
 import torchvision
-import pickle
+from transformers.tokenization_bert import BasicTokenizer, whitespace_tokenize
 
 # Required by XLNet evaluation method to compute optimal threshold (see write_predictions_extended() method)
 # from utils_squad_evaluate import find_all_best_thresh_v2, make_qid_to_has_ans, get_raw_scores
@@ -434,9 +430,7 @@ class LazyQuacDatasetGlobal(LazyQuacDataset):
         # print(collated['input_ids'].shape)
         return collated
 
-
-
-    
+ 
 def is_whitespace(c):
     if c == " " or c == "\t" or c == "\r" or c == "\n" or ord(c) == 0x202F:
         return True
@@ -673,7 +667,7 @@ def convert_example_to_feature(
 
 
 
-def image_transform(path):  ###下面还有一个_image_transform方法，要改的话不要忘记统一修改
+def image_transform(path):
 
     trans_f = torchvision.transforms.Compose([
         torchvision.transforms.Resize((512,512)),

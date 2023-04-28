@@ -20,29 +20,35 @@ from parse import init_parser
 from prepare_data import prepare_dataset
 from pipeline import train, evaluate
 
-def set_seed(seed, n_gpu):
+def set_seed(seed : int, n_gpu : int):
+    """set random seed
+
+    Args:
+        seed (int): random seed
+        n_gpu (int): gpu num
+    """
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     if n_gpu > 0:
         torch.cuda.manual_seed_all(seed)
 
-# def get_passage(i, args):
-#     if itemid_modalities[i] == 'text':
-#         item_context = passages_dict[item_ids[i]]
-#     elif itemid_modalities[i] == 'table':
-#         item_context = tables_dict[item_ids[i]]
-#     elif itemid_modalities[i] == 'image':
-#         item_context = images_dict[item_ids[i]]
-
-#     return item_context
-# get_passages = np.vectorize(get_passage)
-
 def build_train_model(
         args : dict,
         retriever_model_class : AlbertForRetrieverOnlyPositivePassage,
         reader_config_class : BertConfig, reader_model_class : BertForOrconvqaGlobal
 ) -> Pipeline:
+    """build model for training
+
+    Args:
+        args (dict): 
+        retriever_model_class (AlbertForRetrieverOnlyPositivePassage): retriever model class
+        reader_config_class (BertConfig): reader config class
+        reader_model_class (BertForOrconvqaGlobal): reader model class
+
+    Returns:
+        Pipeline: model for training
+    """
     
     model = Pipeline()
 
@@ -80,6 +86,16 @@ def build_test_model(
         reader_model_class : BertForOrconvqaGlobal,
         checkpoint : str
 ) -> Pipeline:
+    """build model for test
+
+    Args:
+        retriever_model_class (AlbertForRetrieverOnlyPositivePassage): retriever model class
+        reader_model_class (BertForOrconvqaGlobal): reader model class
+        checkpoint (str): path of checkpoint
+
+    Returns:
+        Pipeline: model for test
+    """
 
     model = Pipeline()
 
