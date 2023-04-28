@@ -7,6 +7,15 @@ Command to run the inference:
 sh scripts/test.sh
 ```
 
+Expected result:
+```
+f1: 3.1350137621324063,
+human_f1: 93.24725462861055,
+EM: 0.023728813559322035,
+retriever_ndcg: 0.0765567745424312,
+retriever_recall: 0.4271186440677966
+```
+
 ## Project structure
 
 ```
